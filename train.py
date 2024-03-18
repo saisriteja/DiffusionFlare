@@ -1,3 +1,4 @@
+import wandb
 from utils import marginal_prob_std, diffusion_coeff
 
 
@@ -12,12 +13,7 @@ marginal_prob_std_fn = functools.partial(marginal_prob_std, sigma=sigma, device=
 diffusion_coeff_fn = functools.partial(diffusion_coeff, sigma=sigma, device=device)
 
 
-
-
-
-
 #@title Training (double click to expand or collapse)
-
 import torch
 import functools
 from torch.optim import Adam
@@ -56,6 +52,12 @@ optimizer = Adam(score_model.parameters(), lr=lr)
 score_model, optimizer, data_loader = accelerator.prepare(score_model, optimizer, data_loader)
 
 
+
+import wandb
+
+wandb.init(project="flarediffusion", entity="saisritejakuppa")
+
+
 # tqdm_epoch = tqdm.notebook.trange(n_epochs)
 for epoch in range(n_epochs):
   avg_loss = 0.
@@ -63,7 +65,14 @@ for epoch in range(n_epochs):
 
   print("epochs",epoch)
   for x, y in data_loader:
-    loss = loss_fn(score_model, x, marginal_prob_std_fn)
+    loss, score = loss_fn(score_model, x, marginal_prob_std_fn)
+
+    images = wandb.Image(score, caption="Top: Output, Bottom: Input")
+    wandb.log({"examples": images})
+    wandb.log({"loss": loss})
+
+    quit()
+
     optimizer.zero_grad()
     # loss.backward() 
     accelerator.backward(loss)   
