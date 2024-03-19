@@ -1,2 +1,4 @@
 MNIST/
 wandb/
+iitm_data/
+ckpts/

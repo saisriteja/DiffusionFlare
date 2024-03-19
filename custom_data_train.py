@@ -1,7 +1,7 @@
 import wandb
 from utils import marginal_prob_std, diffusion_coeff
-
-
+from tqdm.auto import tqdm
+from torchvision.utils import make_grid
 
 #@title Set up the SDE
 import functools
@@ -20,59 +20,13 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 from torchvision.datasets import MNIST
-import tqdm.notebook
-
-
-from utils import ScoreNet, loss_fn
-
-
-# score_model = torch.nn.DataParallel(ScoreNet(marginal_prob_std=marginal_prob_std_fn))
-
-from accelerate import Accelerator
-accelerator = Accelerator()
-
-
-
-
-
-img_size = 256
-
-
-
-
-
-
-
-
-class Dataset(torch.utils.data.Dataset):
-    def __init__(self):
-        pass
-
-    def __len__(self):
-        return 1000
-
-    def __getitem__(self, index):
-        # get me a 512,512 image
-        img = torch.rand(3, img_size, img_size)
-        
-        return img
-    
-
-train_dataloader = DataLoader(Dataset(), batch_size=4, shuffle=True, num_workers=4)
-
-for x in train_dataloader:
-    x = x.to(device)
-    print(x.shape)
-    break
-
-
-
 
 
 from diffusers import UNet2DModel
 
+latent_size = 256
 model = UNet2DModel(
-    sample_size=img_size,  # the target image resolution
+    sample_size=latent_size,  # the target image resolution
     in_channels=3,  # the number of input channels, 3 for RGB images
     out_channels=3,  # the number of output channels
     layers_per_block=2,  # how many ResNet layers to use per UNet block
@@ -94,15 +48,26 @@ model = UNet2DModel(
         "UpBlock2D",
     ),
 )
+# score_model = torch.nn.DataParallel(ScoreNet(marginal_prob_std=marginal_prob_std_fn))
 
+#from accelerate import Accelerator
+#accelerator = Accelerator()
 
+n_epochs = 10
+batch_size = 4
+lr=1e-4
 
-# print(model)
-model = model.to('cuda:1')
-print("Output shape:", model(x, timestep=0).sample.shape)
+wandb.init(project="flare_diffusion", entity='adithya-lenka')
 
+from train_data_loader import IITM_Dataset
 
+dataset = IITM_Dataset()
+dataloader = DataLoader(dataset, batch_size, shuffle=True)
 
+device = 'cuda:1'
+model = model.to(device)
+
+optimizer = Adam(model.parameters(), lr=lr)
 
 def loss_fn(model, x, marginal_prob_std, eps=1e-5):
   """The loss function for training score-based generative models.
@@ -120,24 +85,71 @@ def loss_fn(model, x, marginal_prob_std, eps=1e-5):
   std = marginal_prob_std(random_t)
   perturbed_x = x + z * std[:, None, None, None]
   score = model(perturbed_x, random_t).sample
-  loss = torch.mean(torch.sum((score * std[:, None, None, None] + z)**2, dim=(1,2,3)))
-  return loss, score
+  loss = torch.mean(torch.sum((score + z)**2, dim=(1,2,3)))
+  return loss
+
+for epoch in tqdm(range(n_epochs)):
+  avg_loss = 0.
+  num_items = 0
+  for x in dataloader:
+    x = x.to(device)
+    loss = loss_fn(model, x, marginal_prob_std_fn)
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+    avg_loss += loss.item()*x.shape[0]
+    num_items += x.shape[0]
+    wandb.log({"loss":loss})
+#  tqdm.set_description('Average Loss: {:5f}'.format(avg_loss/num_items))
+  #if (epoch%10)==9:    
+  #  torch.save(model.state_dict(), f'ckpts/ckpts{epoch+1}.pth')
+  x = next(iter(dataloader)).to(device)
+  input_grid = make_grid(x, nrow=2)
+  input_grid = wandb.Image(input_grid, caption="Input images")
+  wandb.log({"input": input_grid})
+  noise_timestep = .5
+  t = torch.ones(x.shape[0], device = x.device)*noise_timestep
+  z = torch.randn_like(x).to(device)
+  std = marginal_prob_std_fn(t).to(device)
+  noisy_x = x + z*std[:,None, None, None]
+  batch_size = x.shape[0]
+  eps=1e-3
+  time_steps = torch.linspace(noise_timestep, eps, 200, device=device)
+  step_size = time_steps[0] - time_steps[1]
+
+  with torch.no_grad():
+    for time_step in tqdm(time_steps):
+      batch_time_step = torch.ones(batch_size, device=device) * time_step
+      g = diffusion_coeff_fn(batch_time_step)
+      mean_x = noisy_x + (g**2)[:, None, None, None]*model(noisy_x, batch_time_step).sample*step_size
+      noisy_x = mean_x + torch.sqrt(step_size)*g[:, None, None, None]*torch.randn_like(noisy_x)
+
+  mean_x = mean_x.clamp(0.0, 1.0)
+  sample_grid = make_grid(mean_x, nrow=2)
+  sample_grid = wandb.Image(sample_grid, caption="Input images")
+  wandb.log({"sample": sample_grid})
+
+
+# print(model)
+
+#print("Output shape:", model(x, timestep=0).sample.shape)
 
 
 
-loss, score = loss_fn(model, x, marginal_prob_std=marginal_prob_std_fn)
 
-import wandb
-wandb.init(project="flarediffusion", entity="saisritejakuppa")
+# loss, score = loss_fn(model, x, marginal_prob_std=marginal_prob_std_fn)
+
+# import wandb
+# wandb.init(project="flarediffusion", entity="saisritejakuppa")
 
 
 
-print(score.shape)
-images = wandb.Image(score, caption="Top: Output, Bottom: Input")
+# print(score.shape)
+# images = wandb.Image(score, caption="Top: Output, Bottom: Input")
 
-x = wandb.Image(x, caption="Top: Output, Bottom: Input")
+# x = wandb.Image(x, caption="Top: Output, Bottom: Input")
 
-wandb.log({"input": x})
-wandb.log({"output": images})
-wandb.log({"loss": loss})
-print(loss)
+# wandb.log({"input": x})
+# wandb.log({"output": images})
+# wandb.log({"loss": loss})
+# print(loss)
