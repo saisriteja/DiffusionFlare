@@ -23,7 +23,6 @@ accelerator = Accelerator()
 device = accelerator.device
 
 
-wandb_log = wandb.init(project='diffusion-flare')
 
 
 
@@ -43,16 +42,17 @@ def make_generator(name = 'pix2pix'):
 from utils.moving_average import moving_average
 from tqdm import tqdm
 
-def process_loss(log, losses):
+def process_loss(log, losses, weights = None):
     loss = 0
     for k in losses:
         if k not in log:
             log[k] = 0
-        log[k] += losses[k].item()
+        log[k] += losses[k].item() * (weights[k] if weights is not None else 1)
         loss = loss + losses[k]
 
         # log the loss
-        wandb.log({k: losses[k].item()})
+        wandb.log({k + '_og': losses[k].item()})
+        wandb.log({k: losses[k].item() * (weights[k] if weights is not None else 1)})
     return loss
 
 
@@ -102,7 +102,9 @@ class Losses:
                 adv_feats_count += 1
         loss_adv_feat = 1*(4/adv_feats_count)*loss_adv_feat
 
-        return {"G_vgg": loss_vgg, "G_adv": loss_adv, "G_adv_feat": loss_adv_feat, 'G_l1_flare': l1_flare, 'G_l1_base': l1_base}
+        return {"G_vgg": loss_vgg, "G_adv": loss_adv, 
+                "G_adv_feat": loss_adv_feat, 'G_l1_flare': l1_flare, 
+                'G_l1_base': l1_base}
 
     def calc_D_losses(self,data, generator, discriminator, replay_pool):
 
@@ -241,12 +243,9 @@ def train(opt):
 
     discriminator = define_D(input_nc = 3 + 3, ndf = 64, n_layers_D = 3, num_D = 3, norm="instance", getIntermFeat=True)
 
-
     # optimizers
     G_optim = torch.optim.AdamW(generator.parameters(), lr=1e-4)
     D_optim = torch.optim.AdamW(discriminator.parameters(), lr=1e-4)
-
-
 
     generator, discriminator = accelerator.prepare(generator, discriminator)
     generator_ema = accelerator.prepare(generator_ema)
@@ -257,22 +256,14 @@ def train(opt):
     os.makedirs(checkpoint_dir, exist_ok=True)
     os.makedirs('output/images', exist_ok=True)
 
-
     epochs = opt['epochs']
     loss = Losses()
-
     log = {}
-
     N = 0
 
-
     for epoch in range(epochs):
-
-
         logger.debug(f"Epoch: {epoch}")
-
         pbar = tqdm(train_loader)
-
         for data in pbar:
 
             # update the generator
@@ -280,20 +271,30 @@ def train(opt):
             generator.requires_grad_(True)
             discriminator.requires_grad_(False) 
 
+            G_losses = loss.calc_G_losses(data, 
+                                          generator, 
+                                          discriminator)
+            
+            gen_wts = opt['loss_weights']['generator']
 
-            G_losses = loss.calc_G_losses(data, generator, discriminator)
-            G_loss = process_loss(log, G_losses)
+            G_loss = process_loss(log, G_losses, gen_wts)
             G_loss.backward()
             del G_losses
             G_optim.step()
 
-            moving_average(generator, generator_ema)
+            moving_average(generator, generator_ema,beta=0.999)
 
             D_optim.zero_grad()
             generator.requires_grad_(False)
             discriminator.requires_grad_(True)
-            D_losses = loss.calc_D_losses(data, generator, discriminator, replay_pool)
-            D_loss = process_loss(log, D_losses)
+            D_losses = loss.calc_D_losses(data, generator, 
+                                          discriminator, 
+                                          replay_pool)
+            
+
+            disc_wts = opt['loss_weights']['discriminator']
+
+            D_loss = process_loss(log, D_losses, disc_wts)
             D_loss.backward()
             del D_losses
             D_optim.step()
@@ -321,4 +322,12 @@ def train(opt):
 if __name__ == '__main__':
 	
     opt = toml.load('opt.toml')
+
+    wandb_opt = opt['wandb']    
+
+    wandb_log = wandb.init(project='diffusion-flare', 
+                           name = wandb_opt['name'], 
+                           config=opt, 
+                           notes = wandb_opt['notes'])
+    
     train(opt)

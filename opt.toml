@@ -3,6 +3,27 @@ num_workers = 16
 epochs = 1
 
 
+[wandb]
+name = 'pix2pix_flare7kpp'
+notes = "I am testing the code for flare7kpp dataset with pix2pixhd"
+
+
+
+
+[loss_weights]
+[loss_weights.generator]
+G_vgg = 10.0
+G_adv = 10.0
+G_adv_feat = 10
+G_l1_flare = 1.0
+G_l1_base = 2.0
+
+[loss_weights.discriminator]
+D_true = 1.0
+D_false = 1.0
+
+
+
 
 [generator]
 name = 'pix2pix'
