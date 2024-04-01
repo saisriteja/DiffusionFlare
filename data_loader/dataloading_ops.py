@@ -1,3 +1,4 @@
+from sympy import O
 import torch
 import torch.utils.data as data
 import torchvision.transforms as transforms
@@ -7,6 +8,7 @@ import random
 import glob
 import torchvision.transforms.functional as TF
 from torch.distributions import Normal
+from logzero import logger
 
 
 class RandomGammaCorrection(object):
@@ -40,7 +42,7 @@ def remove_background(image):
 
 
 class Flare_Image_Loader(data.Dataset):
-	def __init__(self, image_path ,transform_base,transform_flare,mask_type=None):
+	def __init__(self, image_path ,transform_base,transform_flare,mask_type=None, flare_path = None):
 		self.ext = ['png','jpeg','jpg','bmp','tif']
 		self.data_list=[]
 		[self.data_list.extend(glob.glob(image_path + '/*.' + e)) for e in self.ext]
@@ -72,9 +74,11 @@ class Flare_Image_Loader(data.Dataset):
 									transforms.RandomHorizontalFlip(),
 									transforms.RandomVerticalFlip()
 									])
-		self.data_ratio=[] 
-		print("Base Image Loaded with examples:", len(self.data_list))
+		# self.data_ratio=[] 
 
+		self.data_ratio = []
+
+		
 	def __getitem__(self, index):
 		# load base image
 		img_path=self.data_list[index]
@@ -99,6 +103,11 @@ class Flare_Image_Loader(data.Dataset):
 		base_img=gain*base_img
 		base_img=torch.clamp(base_img,min=0,max=1)
 
+		# print(len(self.flare_list))
+		logger.info(f"Number of flare images: {len(self.flare_list)}")
+		logger.info(f" the data ratio is {self.data_ratio}")
+
+
 		choice_dataset = random.choices([i for i in range(len(self.flare_list))], self.data_ratio)[0]
 		choice_index = random.randint(0, len(self.flare_list[choice_dataset])-1)
 
@@ -114,6 +123,8 @@ class Flare_Image_Loader(data.Dataset):
 			light_img=adjust_gamma(light_img)
 		else:
 			flare_path=self.flare_list[choice_dataset][choice_index]
+
+
 		flare_img =Image.open(flare_path).convert('RGB')
 		if self.reflective_flag:
 			reflective_path_list=self.reflective_list[choice_dataset]
@@ -163,7 +174,12 @@ class Flare_Image_Loader(data.Dataset):
 			flare_img=torch.clamp(flare_img,min=0,max=1)
 			
 		if self.mask_type==None:
-			return {'gt': adjust_gamma_reverse(base_img),'flare': adjust_gamma_reverse(flare_img),'lq': adjust_gamma_reverse(merge_img),'gamma':gamma}
+			return {'gt': adjust_gamma_reverse(base_img),
+		   'flare': adjust_gamma_reverse(flare_img),
+		   'lq': adjust_gamma_reverse(merge_img),
+		   'gamma':gamma}
+		
+
 		elif self.mask_type=="luminance":
 			#calculate mask (the mask is 3 channel)
 			one = torch.ones_like(base_img)
@@ -179,12 +195,15 @@ class Flare_Image_Loader(data.Dataset):
 
 			threshold_value=0.99**gamma
 			flare_mask=torch.where(merge_img >threshold_value, one, zero)
+
 		elif self.mask_type=="flare":
 			one = torch.ones_like(base_img)
 			zero = torch.zeros_like(base_img)
 
 			threshold_value=0.7**gamma
 			flare_mask=torch.where(flare_img >threshold_value, one, zero)
+
+
 		elif self.mask_type=="light":
 			# Depreciated: we dont need light mask anymore
 			one = torch.ones_like(base_img)
@@ -216,6 +235,8 @@ class Flare_Image_Loader(data.Dataset):
 			print("ERROR: scattering flare images are not loaded properly")
 		else:
 			print("Scattering Flare Image:",flare_name, " is loaded successfully with examples", str(len_flare_list))
+
+		logger.debug("total flare images: %d", len(self.flare_list))
 		print("Now we have",len(self.flare_list),'scattering flare images')
 	
 	def load_light_source(self,light_name,light_path):
@@ -253,5 +274,128 @@ class Flare_Image_Loader(data.Dataset):
 			print("Reflective Flare Image:",reflective_name, " is loaded successfully with examples", str(len_reflective_list))
 		print("Now we have",len(self.reflective_list),'refelctive flare images')
 
+		logger.debug("total reflective images: %d", len(self.flare_list))
 
+
+
+class Flare7kpp_Pair_Loader(Flare_Image_Loader):
+	def __init__(self, opt):
+		Flare_Image_Loader.__init__(self,opt['image_path'],
+							  opt['transform_base'],
+							  opt['transform_flare'],
+							  opt['mask_type'])
+		scattering_dict=opt['scattering_dict']
+		reflective_dict=opt['reflective_dict']
+		light_dict=opt['light_dict']
+
+		# defualt not use light mask if opt['use_light_mask'] is not declared
+		if 'data_ratio' not in opt or len(opt['data_ratio'])==0:
+			self.data_ratio = [1] * len(scattering_dict)
+		else:
+			self.data_ratio = opt['data_ratio']
+
+		if len(scattering_dict) !=0:
+			for key in scattering_dict.keys():
+				self.load_scattering_flare(key,scattering_dict[key])
+		if len(reflective_dict) !=0:
+			for key in reflective_dict.keys():
+				self.load_reflective_flare(key,reflective_dict[key])
+		if len(light_dict) !=0:
+			for key in light_dict.keys():
+				self.load_light_source(key,light_dict[key])
+
+
+
+
+
+if __name__ == '__main__':
+
+	# make a sample data loader
+	image_path = '/media/cilab/data/saisriteja/flare/dataset/Flickr24K'
+	flare_path = '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare7K/Scattering_Flare/Compound_Flare'
+	light_path = '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare-R/Light_Source'
+	reflective_path = '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare7K/Reflective_Flare'
+
+	transform_base={'img_size': 512}
+	transform_flare={'scale_min': 0.8, 'scale_max': 1.2, 'translate': 100, 'shear': 20}
+	mask_type = 'luminance'
+
+
+
+# datasets:
+#   train:
+#     name: Flare7Kpp
+#     type: Flare7kpp_Pair_Loader
+#     image_path: dataset/Flickr24K
+#     scattering_dict:
+#       Flare7k_scattering: dataset/Flare7Kpp/Flare7K/Scattering_Flare/Compound_Flare
+#       Real_scattering1: dataset/Flare7Kpp/Flare-R/Compound_Flare
+#     reflective_dict: 
+#       Flare7k_reflective: dataset/Flare7Kpp/Flare7K/Reflective_Flare
+#       Real_reflective1: ~
+#     light_dict:
+#       Flare7k_light: dataset/Flare7Kpp/Flare7K/Scattering_Flare/Light_Source
+#       Real_light1: dataset/Flare7Kpp/Flare-R/Light_Source
+#     data_ratio: [0.5, 0.5] # or [0.6, 0.4], only a ratio is enough
+#     transform_base:
+#       img_size: 512
+#     transform_flare:
+#       scale_min: 0.7
+#       scale_max: 1.2
+#       translate: 100
+#       shear: 20
+#     mask_type: ~
+
+
+	opt = {
+		'dataset':{
+			'train':{
+				'name': 'Flare7Kpp',
+				'type': 'Flare7kpp_Pair_Loader',
+				'image_path': '/media/cilab/data/saisriteja/flare/dataset/Flickr24K',
+				'scattering_dict': {
+					'Flare7k_scattering': '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare7K/Scattering_Flare/Compound_Flare',
+					'Real_scattering1': '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare-R/Compound_Flare'
+				},
+				'reflective_dict': {
+					'Flare7k_reflective': '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare7K/Reflective_Flare',
+					'Real_reflective1': None
+				},
+				'light_dict': {
+					'Flare7k_light': '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare7K/Scattering_Flare/Light_Source',
+					'Real_light1': '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare-R/Light_Source'
+				},
+				'data_ratio': [0.5, 0.5],
+				'transform_base': {
+					'img_size': 512
+				},
+				'transform_flare': {
+					'scale_min': 0.7,
+					'scale_max': 1.2,
+					'translate': 100,
+					'shear': 20
+				},
+				'mask_type': None
+		}
+		}
+	}
+
+	dataset = Flare7kpp_Pair_Loader(opt['dataset']['train'])
+	sample = dataset[0]
+
+
+	# dataset = Flare_Image_Loader(image_path, transform_base, transform_flare, mask_type, flare_path = flare_path)
+	# dataset.load_scattering_flare('flare', flare_path= flare_path)
+	# dataset.load_light_source('light', light_path= light_path)
+	# dataset.load_reflective_flare('reflective', reflective_path= reflective_path)
+
+	# # dataset.data_ratio = [1] * len(glob(flare_path))
+
+	# # get a sample data
+	# sample = dataset[0]
+	print(sample['gt'].shape)
+	print(sample['flare'].shape)
+	print(sample['lq'].shape)
+	# print(sample['mask'].shape)
+	print(sample['gamma'])
 
