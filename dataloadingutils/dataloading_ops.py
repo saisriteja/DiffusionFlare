@@ -104,8 +104,8 @@ class Flare_Image_Loader(data.Dataset):
 		base_img=torch.clamp(base_img,min=0,max=1)
 
 		# print(len(self.flare_list))
-		logger.info(f"Number of flare images: {len(self.flare_list)}")
-		logger.info(f" the data ratio is {self.data_ratio}")
+		# logger.info(f"Number of flare images: {len(self.flare_list)}")
+		# logger.info(f" the data ratio is {self.data_ratio}")
 
 
 		choice_dataset = random.choices([i for i in range(len(self.flare_list))], self.data_ratio)[0]
@@ -126,12 +126,17 @@ class Flare_Image_Loader(data.Dataset):
 
 
 		flare_img =Image.open(flare_path).convert('RGB')
+
 		if self.reflective_flag:
-			reflective_path_list=self.reflective_list[choice_dataset]
-			if len(reflective_path_list) != 0:
+			# logger.debug("choice_dataset: %d", choice_dataset)
+			# logger.debug("length of reflective_list: %d", len(self.reflective_list))
+			# reflective_path_list=self.reflective_list[choice_dataset]
+			try:
+				reflective_path_list=self.reflective_list[choice_dataset]
 				reflective_path=random.choice(reflective_path_list)
 				reflective_img =Image.open(reflective_path).convert('RGB')
-			else:
+				
+			except:
 				reflective_img = None
 
 		flare_img=to_tensor(flare_img)
@@ -283,7 +288,7 @@ class Flare7kpp_Pair_Loader(Flare_Image_Loader):
 		Flare_Image_Loader.__init__(self,opt['image_path'],
 							  opt['transform_base'],
 							  opt['transform_flare'],
-							  opt['mask_type'])
+							  None)
 		scattering_dict=opt['scattering_dict']
 		reflective_dict=opt['reflective_dict']
 		light_dict=opt['light_dict']

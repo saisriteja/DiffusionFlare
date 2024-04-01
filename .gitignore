@@ -2,3 +2,5 @@ MNIST/
 wandb/
 iitm_data/
 ckpts/
+checkpoints/
+output/

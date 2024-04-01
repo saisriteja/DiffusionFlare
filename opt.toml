@@ -1,0 +1,38 @@
+batch_size = 8
+num_workers = 16
+epochs = 1
+
+
+
+[generator]
+name = 'pix2pix'
+
+
+[dataset.train]
+name = "Flare7Kpp"
+type = "Flare7kpp_Pair_Loader"
+image_path = "/media/cilab/data/saisriteja/flare/dataset/Flickr24K"
+data_ratio = [ 0.5, 0.5]
+
+
+[dataset.train.scattering_dict]
+Flare7k_scattering = "/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare7K/Scattering_Flare/Compound_Flare"
+Real_scattering1 = "/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare-R/Compound_Flare"
+
+[dataset.train.reflective_dict]
+Flare7k_reflective = "/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare7K/Reflective_Flare"
+
+[dataset.train.light_dict]
+Flare7k_light = "/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare7K/Scattering_Flare/Light_Source"
+Real_light1 = "/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare-R/Light_Source"
+
+[dataset.train.transform_base]
+img_size = 512
+
+[dataset.train.transform_flare]
+scale_min = 0.7
+scale_max = 1.2
+translate = 100
+shear = 20
+
+
