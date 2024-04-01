@@ -320,33 +320,6 @@ if __name__ == '__main__':
 	transform_flare={'scale_min': 0.8, 'scale_max': 1.2, 'translate': 100, 'shear': 20}
 	mask_type = 'luminance'
 
-
-
-# datasets:
-#   train:
-#     name: Flare7Kpp
-#     type: Flare7kpp_Pair_Loader
-#     image_path: dataset/Flickr24K
-#     scattering_dict:
-#       Flare7k_scattering: dataset/Flare7Kpp/Flare7K/Scattering_Flare/Compound_Flare
-#       Real_scattering1: dataset/Flare7Kpp/Flare-R/Compound_Flare
-#     reflective_dict: 
-#       Flare7k_reflective: dataset/Flare7Kpp/Flare7K/Reflective_Flare
-#       Real_reflective1: ~
-#     light_dict:
-#       Flare7k_light: dataset/Flare7Kpp/Flare7K/Scattering_Flare/Light_Source
-#       Real_light1: dataset/Flare7Kpp/Flare-R/Light_Source
-#     data_ratio: [0.5, 0.5] # or [0.6, 0.4], only a ratio is enough
-#     transform_base:
-#       img_size: 512
-#     transform_flare:
-#       scale_min: 0.7
-#       scale_max: 1.2
-#       translate: 100
-#       shear: 20
-#     mask_type: ~
-
-
 	opt = {
 		'dataset':{
 			'train':{
@@ -384,15 +357,6 @@ if __name__ == '__main__':
 	sample = dataset[0]
 
 
-	# dataset = Flare_Image_Loader(image_path, transform_base, transform_flare, mask_type, flare_path = flare_path)
-	# dataset.load_scattering_flare('flare', flare_path= flare_path)
-	# dataset.load_light_source('light', light_path= light_path)
-	# dataset.load_reflective_flare('reflective', reflective_path= reflective_path)
-
-	# # dataset.data_ratio = [1] * len(glob(flare_path))
-
-	# # get a sample data
-	# sample = dataset[0]
 	print(sample['gt'].shape)
 	print(sample['flare'].shape)
 	print(sample['lq'].shape)
