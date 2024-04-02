@@ -44,7 +44,8 @@ class VGGLoss(nn.Module):
         super(VGGLoss, self).__init__()        
         self.vgg = Vgg19()
         self.criterion = nn.L1Loss()
-        self.weights = [1.0/32, 1.0/16, 1.0/8, 1.0/4, 1.0]        
+        # self.weights = [1.0/32, 1.0/16, 1.0/8, 1.0/4, 1.0]    
+        self.weights = [1/2.6,1/4.8,1/3.7,1/5.6,10/1.5]    
 
     def forward(self, x, y):              
         x_vgg, y_vgg = self.vgg(x), self.vgg(y)

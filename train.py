@@ -16,24 +16,21 @@ import wandb
 from utils.replay_pool import ReplayPool
 replay_pool = ReplayPool(10)
 
-
-
 from accelerate import Accelerator
 accelerator = Accelerator()
 device = accelerator.device
 
-
-
-
-
 def make_generator(name = 'pix2pix'):
-
     if name == 'pix2pix':
         logger.debug("loading pix2pix model")
         gen = define_G(input_nc = 3, output_nc = 6,
         ngf = 64, netG = "global", norm = "instance",
         n_downsample_global = 3, n_blocks_global = 9, 
         n_local_enhancers = 1, n_blocks_local = 3)
+
+    elif name == 'uformer':
+        pass
+
 
     else:
         logger.error("model not found")
