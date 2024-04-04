@@ -14,6 +14,8 @@ from utils import losses
 import os
 import wandb
 
+import time
+
 
 from utils.replay_pool import ReplayPool
 replay_pool = ReplayPool(10)
@@ -220,7 +222,7 @@ def predict_flare_from_6_channel(input_tensor,gamma):
 
 
 
-def test(epoch, iteration, generator_ema, val_loader):
+def test(epoch, iteration, generator_ema, val_loader, checkpoint_dir):
     
     with torch.no_grad():
         generator_ema.eval()
@@ -239,13 +241,13 @@ def test(epoch, iteration, generator_ema, val_loader):
         bs = lq.shape[0]
         for i in range(bs):
             img = np.concatenate([lq[i].cpu().numpy().transpose(1,2,0), deflare[i].cpu().numpy().transpose(1,2,0), gt[i].cpu().numpy().transpose(1,2,0), flare[i].cpu().numpy().transpose(1,2,0), flare_hat[i].cpu().numpy().transpose(1,2,0), merge_hat[i].cpu().numpy().transpose(1,2,0)], axis=1)
-            cv2.imwrite(f"output/images/{epoch}_{iteration}_{i}.png", img*255)
-            cv2.imwrite(f"output/images/{epoch}_{iteration}_{i}_lq.png", lq[i].cpu().numpy().transpose(1,2,0)*255)
-            cv2.imwrite(f"output/images/{epoch}_{iteration}_{i}_gt.png", gt[i].cpu().numpy().transpose(1,2,0)*255)
-            cv2.imwrite(f"output/images/{epoch}_{iteration}_{i}_flare.png", flare[i].cpu().numpy().transpose(1,2,0)*255)
-            cv2.imwrite(f"output/images/{epoch}_{iteration}_{i}_deflare.png", deflare[i].cpu().numpy().transpose(1,2,0)*255)
-            cv2.imwrite(f"output/images/{epoch}_{iteration}_{i}_flare_hat.png", flare_hat[i].cpu().numpy().transpose(1,2,0)*255)
-            cv2.imwrite(f"output/images/{epoch}_{iteration}_{i}_merge_hat.png", merge_hat[i].cpu().numpy().transpose(1,2,0)*255)
+            cv2.imwrite(f"{checkpoint_dir}/images/{epoch}_{iteration}_{i}.png", img*255)
+            cv2.imwrite(f"{checkpoint_dir}/images/{epoch}_{iteration}_{i}_lq.png", lq[i].cpu().numpy().transpose(1,2,0)*255)
+            cv2.imwrite(f"{checkpoint_dir}/images/{epoch}_{iteration}_{i}_gt.png", gt[i].cpu().numpy().transpose(1,2,0)*255)
+            cv2.imwrite(f"{checkpoint_dir}/images/{epoch}_{iteration}_{i}_flare.png", flare[i].cpu().numpy().transpose(1,2,0)*255)
+            cv2.imwrite(f"{checkpoint_dir}/images/{epoch}_{iteration}_{i}_deflare.png", deflare[i].cpu().numpy().transpose(1,2,0)*255)
+            cv2.imwrite(f"{checkpoint_dir}/images/{epoch}_{iteration}_{i}_flare_hat.png", flare_hat[i].cpu().numpy().transpose(1,2,0)*255)
+            cv2.imwrite(f"{checkpoint_dir}/images/{epoch}_{iteration}_{i}_merge_hat.png", merge_hat[i].cpu().numpy().transpose(1,2,0)*255)
 
         # stack all the images
         img = np.concatenate([lq[0].cpu().numpy().transpose(1,2,0), 
@@ -265,7 +267,7 @@ def test(epoch, iteration, generator_ema, val_loader):
                                                        merge_hat[i].cpu().numpy().transpose(1,2,0)], axis=1)], axis=0)
         
         
-        cv2.imwrite(f"output/images/{epoch}_{iteration}.png", img*255)
+        cv2.imwrite(f"{checkpoint_dir}/images/{epoch}_{iteration}.png", img*255)
 
         # log the image
         wandb.log({"image": [wandb.Image(img*255, caption=f"epoch_{epoch}_{iteration}")]})
@@ -309,9 +311,15 @@ def train(opt):
     G_optim, D_optim = accelerator.prepare(G_optim, D_optim)
     train_loader, val_loader = accelerator.prepare(train_loader, val_loader)
 
-    checkpoint_dir = 'checkpoints'
+    timestamp = time.time()
+    timestamp = str(timestamp)
+    
+    checkpoint_dir = os.path.join('checkpoints', timestamp)
+
     os.makedirs(checkpoint_dir, exist_ok=True)
-    os.makedirs('output/images', exist_ok=True)
+    os.makedirs(f'{checkpoint_dir}/images', exist_ok=True)
+
+    logger.debug(f"The images and the models are saved at {checkpoint_dir}")
 
     epochs = opt['epochs']
     loss = Losses()
@@ -364,7 +372,7 @@ def train(opt):
             if (N%100 == 0) or (N + 1 >= len(train_loader)):
                 for i in range(3):
                     # test(epoch, N + i)
-                    test(epoch, N+1, generator_ema, val_loader)
+                    test(epoch, N+1, generator_ema, val_loader, checkpoint_dir)
             for k in log:
                 txt += f"{k}: {log[k]/N:.3e} "
             pbar.set_description(txt)

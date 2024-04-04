@@ -1,14 +1,13 @@
-batch_size = 2
+batch_size = 1
 num_workers = 16
-epochs = 1000
+epochs = 100
 
 [generator]
-name = 'mamba'
+name = 'restormer'
 
 [wandb]
 name = 'mamba'
 notes = "I am testing the code for flare7kpp dataset with pix2pixhd"
-
 
 [loss_weights]
 [loss_weights.generator]
