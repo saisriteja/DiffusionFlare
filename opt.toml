@@ -1,13 +1,13 @@
-batch_size = 8
+batch_size = 2
 num_workers = 16
-epochs = 1
+epochs = 1000
 
+[generator]
+name = 'mamba'
 
 [wandb]
-name = 'pix2pix_flare7kpp'
+name = 'mamba'
 notes = "I am testing the code for flare7kpp dataset with pix2pixhd"
-
-
 
 
 [loss_weights]
@@ -22,11 +22,6 @@ G_l1_base = 2.0
 D_true = 1.0
 D_false = 1.0
 
-
-
-
-[generator]
-name = 'pix2pix'
 
 
 [dataset.train]

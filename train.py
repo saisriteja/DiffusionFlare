@@ -7,7 +7,9 @@ import numpy as np
 import cv2
 import torch
 from utils.discriminator import define_D
+from models.restormer import Restormer
 from models.generator import define_G
+from models.nafnet import NAFNet
 from utils import losses
 import os
 import wandb
@@ -32,6 +34,46 @@ def make_generator(name = 'pix2pix'):
         pass
 
 
+    elif name == 'mamba':
+        from models.mamba import VSSM
+        gen = VSSM(num_classes=6)
+        return gen
+
+    elif name == 'restormer':
+        # from restormer import Restormer
+        gen = Restormer(
+        inp_channels=3, 
+        out_channels=3, # it will output 3*2 = 6 channels
+        dim = 48,
+        num_blocks = [2,2,2,2], 
+        num_refinement_blocks = 1,
+        heads = [1,2,4,8],
+        ffn_expansion_factor = 2.66,
+        bias = False,
+        LayerNorm_type = 'WithBias',
+        dual_pixel_task = False
+        )
+        
+        pretrained_dict = torch.load('./models/real_denoising.pth')
+        gen.load_state_dict(pretrained_dict, strict =False)
+        gen.train()   
+    
+    elif name == 'nafnet':
+        gen = NAFNet(
+            img_channel = 3,
+            width = 32,
+            enc_blk_nums = [2, 2, 4, 8],
+            middle_blk_num = 12,
+            dec_blk_nums = [2, 2, 2, 2],
+            # enc_blks = [1, 1, 1, 28],
+            # middle_blk_num = 1,
+            # dec_blks = [1, 1, 1, 1]
+        )
+        
+        pretrained_dict = torch.load('./models/nafnet32.pth')
+        gen.load_state_dict(pretrained_dict, strict =False)
+        gen.train() 
+    
     else:
         logger.error("model not found")
     return gen
@@ -50,6 +92,8 @@ def process_loss(log, losses, weights = None):
         # log the loss
         wandb.log({k + '_og': losses[k].item()})
         wandb.log({k: losses[k].item() * (weights[k] if weights is not None else 1)})
+
+    # wandb.log('adv_loss', )
     return loss
 
 
@@ -72,6 +116,19 @@ class Losses:
         gt = data['gt']
         flare = data['flare']
         gamma = data['gamma']
+
+        # logger.info("into infinte loop")
+
+        # print(lq.shape)
+
+        # while True:
+        #     pass
+
+        # gen_gpu = generator.device
+        # lg = lq.device
+        # logger.info(f"generator device: {gen_gpu}, lq device: {lg}")
+
+        # quit()
 
         output_gen  =  generator(lq)
         deflare,flare_hat,merge_hat = predict_flare_from_6_channel(input_tensor=output_gen,gamma=gamma)
@@ -179,7 +236,8 @@ def test(epoch, iteration, generator_ema, val_loader):
 
 
         # save the image in stack
-        for i in range(4):
+        bs = lq.shape[0]
+        for i in range(bs):
             img = np.concatenate([lq[i].cpu().numpy().transpose(1,2,0), deflare[i].cpu().numpy().transpose(1,2,0), gt[i].cpu().numpy().transpose(1,2,0), flare[i].cpu().numpy().transpose(1,2,0), flare_hat[i].cpu().numpy().transpose(1,2,0), merge_hat[i].cpu().numpy().transpose(1,2,0)], axis=1)
             cv2.imwrite(f"output/images/{epoch}_{iteration}_{i}.png", img*255)
             cv2.imwrite(f"output/images/{epoch}_{iteration}_{i}_lq.png", lq[i].cpu().numpy().transpose(1,2,0)*255)
@@ -198,7 +256,7 @@ def test(epoch, iteration, generator_ema, val_loader):
                               merge_hat[0].cpu().numpy().transpose(1,2,0)], axis=1)
         
 
-        for i in range(1, 4):
+        for i in range(1, bs):
             img = np.concatenate([img, np.concatenate([lq[i].cpu().numpy().transpose(1,2,0), 
                                                        deflare[i].cpu().numpy().transpose(1,2,0),
                                                         gt[i].cpu().numpy().transpose(1,2,0), 
@@ -228,6 +286,8 @@ def train(opt):
     train_loader = DataLoader(train_dataset, batch_size=opt['batch_size'], shuffle=True, num_workers=opt['num_workers'])    
     val_loader = DataLoader(val_dataset, batch_size=opt['batch_size'], shuffle=False, num_workers=opt['num_workers'])
 
+    logger.debug("the model is  " + opt['generator']['name'])
+
     # make the generator
     generator = make_generator(opt['generator']['name'])
     generator_ema = make_generator(opt['generator']['name'])
@@ -238,7 +298,7 @@ def train(opt):
             ep.data = gp.data.detach()
 
 
-    discriminator = define_D(input_nc = 3 + 3, ndf = 64, n_layers_D = 3, num_D = 3, norm="instance", getIntermFeat=True)
+    discriminator = define_D(input_nc = 3 + 3, ndf = 64, n_layers_D = 1, num_D = 1, norm="instance", getIntermFeat=True)
 
     # optimizers
     G_optim = torch.optim.AdamW(generator.parameters(), lr=1e-4)
@@ -275,6 +335,7 @@ def train(opt):
             gen_wts = opt['loss_weights']['generator']
 
             G_loss = process_loss(log, G_losses, gen_wts)
+            wandb.log({"total_G_loss": G_loss.item()})
             G_loss.backward()
             del G_losses
             G_optim.step()
@@ -292,6 +353,7 @@ def train(opt):
             disc_wts = opt['loss_weights']['discriminator']
 
             D_loss = process_loss(log, D_losses, disc_wts)
+            wandb.log({"total_D_loss": D_loss.item()})
             D_loss.backward()
             del D_losses
             D_optim.step()
