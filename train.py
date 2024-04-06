@@ -8,6 +8,7 @@ import cv2
 import torch
 from utils.discriminator import define_D
 from models.restormer import Restormer
+from models.uformer import Uformer
 from models.generator import define_G
 from models.nafnet import NAFNet
 from utils import losses
@@ -33,7 +34,18 @@ def make_generator(name = 'pix2pix'):
         n_local_enhancers = 1, n_blocks_local = 3)
 
     elif name == 'uformer':
-        pass
+        gen = Uformer(img_size=512, 
+                embed_dim=16,
+                depths=[2, 2, 2, 2, 2, 2, 2, 2, 2],
+                win_size=8,
+                mlp_ratio=4., 
+                token_projection='linear', 
+                token_mlp='leff', 
+                modulator=True, 
+                shift_flag=False)
+        pretrained_dict = torch.load('./models/l1_lpipsvgg.pth')
+        gen.load_state_dict(pretrained_dict, strict =False)
+        gen.train() 
 
 
     elif name == 'mamba':
@@ -285,6 +297,10 @@ def train(opt):
 
     train_dataset, val_dataset = torch.utils.data.random_split(dataset, [int(len(dataset)*0.8), len(dataset)-int(len(dataset)*0.8)])
 
+    logger.info(f"Train dataset length: {len(train_dataset)}")
+    logger.info(f"Val dataset length: {len(val_dataset)}")
+
+
     train_loader = DataLoader(train_dataset, batch_size=opt['batch_size'], shuffle=True, num_workers=opt['num_workers'])    
     val_loader = DataLoader(val_dataset, batch_size=opt['batch_size'], shuffle=False, num_workers=opt['num_workers'])
 
@@ -369,7 +385,7 @@ def train(opt):
 
             txt = ""
             N += 1
-            if (N%100 == 0) or (N + 1 >= len(train_loader)):
+            if (N%300 == 0) or (N + 1 >= len(train_loader)):
                 for i in range(3):
                     # test(epoch, N + i)
                     test(epoch, N+1, generator_ema, val_loader, checkpoint_dir)

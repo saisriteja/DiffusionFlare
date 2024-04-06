@@ -236,6 +236,9 @@ class Flare_Image_Loader(data.Dataset):
 		self.flare_dict[flare_name]=flare_list
 		self.flare_list.append(flare_list)
 		len_flare_list=len(self.flare_dict[flare_name])
+
+		print("the path is",flare_path)
+
 		if len_flare_list == 0:
 			print("ERROR: scattering flare images are not loaded properly")
 		else:
@@ -316,7 +319,7 @@ class Flare7kpp_Pair_Loader(Flare_Image_Loader):
 if __name__ == '__main__':
 
 	# make a sample data loader
-	image_path = '/media/cilab/data/saisriteja/flare/dataset/Flickr24K'
+	image_path = '/media/cilab/saisriteja/flare/dataset/Flickr24K'
 	flare_path = '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare7K/Scattering_Flare/Compound_Flare'
 	light_path = '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare-R/Light_Source'
 	reflective_path = '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare7K/Reflective_Flare'
@@ -330,7 +333,7 @@ if __name__ == '__main__':
 			'train':{
 				'name': 'Flare7Kpp',
 				'type': 'Flare7kpp_Pair_Loader',
-				'image_path': '/media/cilab/data/saisriteja/flare/dataset/Flickr24K',
+				'image_path': '/media/cilab/saisriteja/flare/dataset/Flickr24K',
 				'scattering_dict': {
 					'Flare7k_scattering': '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare7K/Scattering_Flare/Compound_Flare',
 					'Real_scattering1': '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare-R/Compound_Flare'
