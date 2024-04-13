@@ -1263,8 +1263,8 @@ class Uformer(nn.Module):
 
         # Decoder
         self.upsample_0 = upsample(embed_dim*16, embed_dim*8)
-        self.decoderlayer_0 = BasicUformerLayer(dim=embed_dim*32,
-                            output_dim=embed_dim*32,
+        self.decoderlayer_0 = BasicUformerLayer(dim=embed_dim*16,
+                            output_dim=embed_dim*16,
                             input_resolution=(img_size // (2 ** 3),
                                                 img_size // (2 ** 3)),
                             depth=depths[5],
@@ -1279,10 +1279,10 @@ class Uformer(nn.Module):
                             token_projection=token_projection,token_mlp=token_mlp,shift_flag=shift_flag,
                             modulator=modulator,cross_modulator=cross_modulator)
         
-        self.upsample_1 = upsample(embed_dim*32, embed_dim*8)
+        self.upsample_1 = upsample(embed_dim*16, embed_dim*4)
 
-        self.decoderlayer_1 = BasicUformerLayer(dim=embed_dim*16,
-                            output_dim=embed_dim*16,
+        self.decoderlayer_1 = BasicUformerLayer(dim=embed_dim*8,
+                            output_dim=embed_dim*8,
                             input_resolution=(img_size // (2 ** 2),
                                                 img_size // (2 ** 2)),
                             depth=depths[6],
@@ -1411,6 +1411,9 @@ class Uformer(nn.Module):
         x_out_0 = self.FFMs[0](x_rgb, x_e)
 
 
+        logger.info('x_out_0: {}'.format(x_out_0.shape))
+
+
         self.input_proj_rgb_1 = InputProj(in_channel=32, out_channel=32, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
         self.input_proj_depth_1 = InputProj(in_channel=32, out_channel=32, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
 
@@ -1434,6 +1437,8 @@ class Uformer(nn.Module):
 
         x_rgb, x_e = self.FRMs[1](rgb_pool1, depth_pool1)
         x_out_1 = self.FFMs[1](x_rgb, x_e)
+
+        logger.info('x_out_1: {}'.format(x_out_1.shape))
 
 
 
@@ -1461,6 +1466,8 @@ class Uformer(nn.Module):
         x_rgb, x_e = self.FRMs[2](rgb_pool2, depth_pool2)
         x_out_2 = self.FFMs[2](x_rgb, x_e)
 
+        logger.info('x_out_2: {}'.format(x_out_2.shape))
+
 
         self.input_proj_rgb_3 = InputProj(in_channel=128, out_channel=128, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
         self.input_proj_depth_3 = InputProj(in_channel=128, out_channel=128, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
@@ -1486,6 +1493,8 @@ class Uformer(nn.Module):
         x_rgb, x_e = self.FRMs[3](rgb_pool3, depth_pool3)
         x_out_3 = self.FFMs[3](x_rgb, x_e)
 
+        logger.info('x_out_3: {}'.format(x_out_3.shape))
+
         
         # x_out_0 to 3 consists of vital information
 
@@ -1493,52 +1502,62 @@ class Uformer(nn.Module):
         # Bottleneck
         self.input_proj_rgb_3 = InputProj(in_channel=256, out_channel=256, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
         x_out_3_ = self.input_proj_rgb_3(x_out_3)
-        # x_out_3_ = rgb_pool3+ depth_pool3
         conv4 = self.conv(x_out_3_, mask=mask)
-        conv4 = self.dowsample_3(conv4)
+
+
 
         #Decoder
-        # up0 = self.upsample_0(conv4)
-
-        up0 = conv4
-        conv3 = x_out_3
-
-
-        B, C, H, W = conv3.shape
-        conv3 = conv3.reshape(B, C * 4, H // 2 *  W // 2).contiguous()
-        deconv0 = torch.cat([up0,conv3],-1)
+        up0 = self.upsample_0(conv4)
+        B, C, H, W = x_out_3.shape
+        x_out_3 = x_out_3.reshape(B, C * 4, H // 2 *  W // 2).contiguous()
+        x_out_3 = self.upsample_0(x_out_3)
+        deconv0 = torch.cat([up0,x_out_3],-1)
         deconv0 = self.decoderlayer_0(deconv0,mask=mask)
-
-
-        logger.info(deconv0.shape)
-        quit()
-
-
         conv2 = x_out_2
         up1 = self.upsample_1(deconv0)
 
-        B, C, H, W = conv2.shape
-        conv2 = conv2.reshape(B, C * 32, H // 16 *  W // 2).contiguous()
-        deconv1 = torch.cat([up1,conv2],-1)
-        deconv1 = self.decoderlayer_1(deconv1,mask=mask)
+        # logger.info("up1 shape: {}".format(up1.shape))
 
-        conv1 = x_out_1
-        B, C, H, W = conv1.shape
-        # conv1 = conv1.reshape(B, C * 32, H // 16 *  W // 2).contiguous()
+        B, C, H, W = conv2.shape
+        conv2 = conv2.reshape(B, C * 32, (H *  W) // 32).contiguous()
+        self.upsample_1_conv = Upsample(embed_dim*8, embed_dim*4)
+        conv2 = self.upsample_1_conv(conv2)
+        deconv1 = torch.cat([up1,conv2],-1)
+        logger.info(deconv1.shape)
+        deconv1 = self.decoderlayer_1(deconv1,mask=mask)
+        logger.info(deconv1.shape)
+
+        
+        
+        
         up2 = self.upsample_2(deconv1)
-        deconv2 = torch.cat([up2,conv1],-1)
+        conv3 = x_out_1
+        B, C, H, W = conv3.shape
+        conv3 = conv3.reshape(B, C * 32 * 8  , H // 32 *  W // 8).contiguous()
+        self.upsample_2_conv = Upsample(embed_dim * 4 , out_channel=embed_dim * 2)
+        conv3 = self.upsample_2_conv(conv3)
+        deconv2 = torch.cat([up2,conv3],-1)
         deconv2 = self.decoderlayer_2(deconv2,mask=mask)
 
-        conv0 = x_out_0
 
         up3 = self.upsample_3(deconv2)
-        deconv3 = torch.cat([up3,conv0],-1)
-        deconv3 = self.decoderlayer_3(deconv3,mask=mask)
-        y = self.output_proj(deconv3)
+        conv4 = x_out_0
+        B, C, H, W = conv4.shape
+        conv4 = conv4.reshape(B, C * 32 * 8 * 8 , H // 32 *  W // 64).contiguous()
+        self.upsample_3_conv = Upsample(embed_dim * 2, out_channel=embed_dim)
+        conv4 = self.upsample_3_conv(conv4)
+        deconv4 = torch.cat([up3,conv4],-1)
+        deconv4 = self.decoderlayer_3(deconv4,mask=mask)
 
-        out= x+y if self.dd_in == 3 else y
+
+        deconv3_ = self.decoderlayer_3(deconv4,mask=mask)
+        y = self.output_proj(deconv3_)
+
+        # out= x+y if self.dd_in == 3 else y
+
+        out = (rgb * 0.25) + (depth * 0.25) + (y * 0.5)
         
-        out = self.end_conv(y)
+        out = self.end_conv(out)
         out = torch.tanh(out)
         
         return out
