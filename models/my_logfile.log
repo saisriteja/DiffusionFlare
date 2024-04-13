@@ -1,0 +1,284 @@
+[D 240412 19:40:22 depth_uformer:1286] pool0 shape: torch.Size([1, 65536, 32])
+[I 240412 21:21:49 depth_uformer:1418] layer 0
+[I 240412 21:21:49 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:21:49 depth_uformer:1444] layer 1
+[I 240412 21:21:49 depth_uformer:1445] torch.Size([1, 64, 128, 128])
+[I 240412 21:22:39 depth_uformer:1418] layer 0
+[I 240412 21:22:39 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:22:39 depth_uformer:1444] layer 1
+[I 240412 21:22:39 depth_uformer:1445] torch.Size([1, 64, 128, 128])
+[I 240412 21:23:21 depth_uformer:1418] layer 0
+[I 240412 21:23:21 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:23:21 depth_uformer:1444] layer 1
+[I 240412 21:23:21 depth_uformer:1445] torch.Size([1, 64, 128, 128])
+[I 240412 21:23:41 depth_uformer:1418] layer 0
+[I 240412 21:23:41 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:23:41 depth_uformer:1444] layer 1
+[I 240412 21:23:41 depth_uformer:1445] torch.Size([1, 64, 128, 128])
+[I 240412 21:24:05 depth_uformer:1418] layer 0
+[I 240412 21:24:05 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:24:06 depth_uformer:1444] layer 1
+[I 240412 21:24:06 depth_uformer:1445] torch.Size([1, 64, 128, 128])
+[I 240412 21:24:17 depth_uformer:1418] layer 0
+[I 240412 21:24:17 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:24:17 depth_uformer:1444] layer 1
+[I 240412 21:24:17 depth_uformer:1445] torch.Size([1, 64, 128, 128])
+[I 240412 21:24:59 depth_uformer:1418] layer 0
+[I 240412 21:24:59 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:25:00 depth_uformer:1444] layer 1
+[I 240412 21:25:00 depth_uformer:1445] torch.Size([1, 64, 128, 128])
+[I 240412 21:25:12 depth_uformer:1418] layer 0
+[I 240412 21:25:12 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:25:12 depth_uformer:1444] layer 1
+[I 240412 21:25:12 depth_uformer:1445] torch.Size([1, 64, 128, 128])
+[I 240412 21:25:29 depth_uformer:1418] layer 0
+[I 240412 21:25:29 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:25:30 depth_uformer:1444] layer 1
+[I 240412 21:25:30 depth_uformer:1445] torch.Size([1, 64, 128, 128])
+[I 240412 21:26:16 depth_uformer:1418] layer 0
+[I 240412 21:26:16 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:26:16 depth_uformer:1444] layer 1
+[I 240412 21:26:16 depth_uformer:1445] torch.Size([1, 64, 128, 128])
+[I 240412 21:28:18 depth_uformer:1418] layer 0
+[I 240412 21:28:18 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:28:18 depth_uformer:1444] layer 1
+[I 240412 21:28:18 depth_uformer:1445] torch.Size([1, 64, 128, 128])
+[I 240412 21:28:30 depth_uformer:1418] layer 0
+[I 240412 21:28:30 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:28:30 depth_uformer:1444] layer 1
+[I 240412 21:28:30 depth_uformer:1445] torch.Size([1, 64, 128, 128])
+[I 240412 21:28:46 depth_uformer:1418] layer 0
+[I 240412 21:28:46 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:28:47 depth_uformer:1444] layer 1
+[I 240412 21:28:47 depth_uformer:1445] torch.Size([1, 64, 128, 128])
+[I 240412 21:29:05 depth_uformer:1418] layer 0
+[I 240412 21:29:05 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:29:05 depth_uformer:1444] layer 1
+[I 240412 21:29:05 depth_uformer:1445] torch.Size([1, 64, 128, 128])
+[I 240412 21:29:19 depth_uformer:1418] layer 0
+[I 240412 21:29:19 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:29:19 depth_uformer:1444] layer 1
+[I 240412 21:29:19 depth_uformer:1445] torch.Size([1, 64, 128, 128])
+[I 240412 21:37:59 depth_uformer:1418] layer 0
+[I 240412 21:37:59 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:37:59 depth_uformer:1449] layer 1
+[I 240412 21:37:59 depth_uformer:1450] torch.Size([1, 64, 128, 128])
+[I 240412 21:48:23 depth_uformer:1418] layer 0
+[I 240412 21:48:23 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:48:23 depth_uformer:1449] layer 1
+[I 240412 21:48:23 depth_uformer:1450] torch.Size([1, 64, 128, 128])
+[I 240412 21:49:56 depth_uformer:1418] layer 0
+[I 240412 21:49:56 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:49:56 depth_uformer:1449] layer 1
+[I 240412 21:49:56 depth_uformer:1450] torch.Size([1, 64, 128, 128])
+[I 240412 21:50:08 depth_uformer:1418] layer 0
+[I 240412 21:50:08 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:50:08 depth_uformer:1449] layer 1
+[I 240412 21:50:08 depth_uformer:1450] torch.Size([1, 64, 128, 128])
+[I 240412 21:52:08 depth_uformer:1418] layer 0
+[I 240412 21:52:08 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:52:08 depth_uformer:1449] layer 1
+[I 240412 21:52:08 depth_uformer:1450] torch.Size([1, 64, 128, 128])
+[I 240412 21:52:25 depth_uformer:1418] layer 0
+[I 240412 21:52:25 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:52:25 depth_uformer:1449] layer 1
+[I 240412 21:52:25 depth_uformer:1450] torch.Size([1, 64, 128, 128])
+[I 240412 21:53:45 depth_uformer:1418] layer 0
+[I 240412 21:53:45 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 21:53:45 depth_uformer:1449] layer 1
+[I 240412 21:53:45 depth_uformer:1450] torch.Size([1, 64, 128, 128])
+[I 240412 22:28:08 depth_uformer:1418] layer 0
+[I 240412 22:28:08 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 22:28:09 depth_uformer:1449] layer 1
+[I 240412 22:28:09 depth_uformer:1450] torch.Size([1, 64, 128, 128])
+[I 240412 22:28:26 depth_uformer:1418] layer 0
+[I 240412 22:28:26 depth_uformer:1419] torch.Size([1, 32, 256, 256])
+[I 240412 22:28:26 depth_uformer:1449] layer 1
+[I 240412 22:28:26 depth_uformer:1450] torch.Size([1, 64, 128, 128])
+[I 240412 22:31:21 depth_uformer:1413] layer 0
+[I 240412 22:31:21 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 22:31:21 depth_uformer:1440] layer 1
+[I 240412 22:31:21 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240412 22:31:48 depth_uformer:1413] layer 0
+[I 240412 22:31:48 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 22:31:48 depth_uformer:1440] layer 1
+[I 240412 22:31:48 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240412 22:33:21 depth_uformer:1413] layer 0
+[I 240412 22:33:21 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 22:33:21 depth_uformer:1440] layer 1
+[I 240412 22:33:21 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240412 22:34:17 depth_uformer:1413] layer 0
+[I 240412 22:34:17 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 22:34:18 depth_uformer:1440] layer 1
+[I 240412 22:34:18 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240412 22:34:30 depth_uformer:1413] layer 0
+[I 240412 22:34:30 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 22:34:30 depth_uformer:1440] layer 1
+[I 240412 22:34:30 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240412 22:35:33 depth_uformer:1413] layer 0
+[I 240412 22:35:33 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 22:35:33 depth_uformer:1440] layer 1
+[I 240412 22:35:33 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240412 22:35:45 depth_uformer:1413] layer 0
+[I 240412 22:35:45 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 22:35:45 depth_uformer:1440] layer 1
+[I 240412 22:35:45 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240412 22:37:07 depth_uformer:1413] layer 0
+[I 240412 22:37:07 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 22:37:08 depth_uformer:1440] layer 1
+[I 240412 22:37:08 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240412 22:37:24 depth_uformer:1413] layer 0
+[I 240412 22:37:24 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 22:37:24 depth_uformer:1440] layer 1
+[I 240412 22:37:24 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240412 22:38:59 depth_uformer:1413] layer 0
+[I 240412 22:38:59 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 22:39:00 depth_uformer:1440] layer 1
+[I 240412 22:39:00 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240412 22:44:25 depth_uformer:1413] layer 0
+[I 240412 22:44:25 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 22:44:25 depth_uformer:1440] layer 1
+[I 240412 22:44:25 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240412 22:45:43 depth_uformer:1413] layer 0
+[I 240412 22:45:43 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 22:45:44 depth_uformer:1440] layer 1
+[I 240412 22:45:44 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240412 22:46:28 depth_uformer:1413] layer 0
+[I 240412 22:46:28 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 22:46:28 depth_uformer:1440] layer 1
+[I 240412 22:46:28 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240412 22:47:23 depth_uformer:1413] layer 0
+[I 240412 22:47:23 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 22:47:24 depth_uformer:1440] layer 1
+[I 240412 22:47:24 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240412 22:50:39 depth_uformer:1413] layer 0
+[I 240412 22:50:39 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 22:50:39 depth_uformer:1440] layer 1
+[I 240412 22:50:39 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240412 22:52:56 depth_uformer:1413] layer 0
+[I 240412 22:52:56 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 22:52:56 depth_uformer:1440] layer 1
+[I 240412 22:52:56 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240412 22:53:07 depth_uformer:1413] layer 0
+[I 240412 22:53:07 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 22:53:08 depth_uformer:1440] layer 1
+[I 240412 22:53:08 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240412 22:53:21 depth_uformer:1413] layer 0
+[I 240412 22:53:21 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 22:53:21 depth_uformer:1440] layer 1
+[I 240412 22:53:21 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240412 23:01:31 depth_uformer:1413] layer 0
+[I 240412 23:01:31 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240412 23:01:32 depth_uformer:1440] layer 1
+[I 240412 23:01:32 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:20:02 depth_uformer:1413] layer 0
+[I 240413 07:20:02 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:20:02 depth_uformer:1440] layer 1
+[I 240413 07:20:02 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:22:19 depth_uformer:1413] layer 0
+[I 240413 07:22:19 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:22:19 depth_uformer:1440] layer 1
+[I 240413 07:22:19 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:22:39 depth_uformer:1413] layer 0
+[I 240413 07:22:39 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:22:39 depth_uformer:1440] layer 1
+[I 240413 07:22:39 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:23:05 depth_uformer:1413] layer 0
+[I 240413 07:23:05 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:23:05 depth_uformer:1440] layer 1
+[I 240413 07:23:05 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:23:57 depth_uformer:1413] layer 0
+[I 240413 07:23:57 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:23:57 depth_uformer:1440] layer 1
+[I 240413 07:23:57 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:25:19 depth_uformer:1413] layer 0
+[I 240413 07:25:19 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:25:19 depth_uformer:1440] layer 1
+[I 240413 07:25:19 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:27:46 depth_uformer:1413] layer 0
+[I 240413 07:27:46 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:27:46 depth_uformer:1440] layer 1
+[I 240413 07:27:46 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:28:16 depth_uformer:1413] layer 0
+[I 240413 07:28:16 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:28:17 depth_uformer:1440] layer 1
+[I 240413 07:28:17 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:28:51 depth_uformer:1413] layer 0
+[I 240413 07:28:51 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:28:52 depth_uformer:1440] layer 1
+[I 240413 07:28:52 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:29:06 depth_uformer:1413] layer 0
+[I 240413 07:29:06 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:29:07 depth_uformer:1440] layer 1
+[I 240413 07:29:07 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:30:09 depth_uformer:1413] layer 0
+[I 240413 07:30:09 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:30:10 depth_uformer:1440] layer 1
+[I 240413 07:30:10 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:30:37 depth_uformer:1413] layer 0
+[I 240413 07:30:37 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:30:38 depth_uformer:1440] layer 1
+[I 240413 07:30:38 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:30:38 depth_uformer:1530] torch.Size([1, 1024, 512])
+[I 240413 07:31:25 depth_uformer:1413] layer 0
+[I 240413 07:31:25 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:31:25 depth_uformer:1440] layer 1
+[I 240413 07:31:25 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:31:25 depth_uformer:1531] torch.Size([1, 1024, 256])
+[I 240413 07:31:25 depth_uformer:1533] torch.Size([1, 4096, 128])
+[I 240413 07:31:36 depth_uformer:1413] layer 0
+[I 240413 07:31:36 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:31:37 depth_uformer:1440] layer 1
+[I 240413 07:31:37 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:31:37 depth_uformer:1531] torch.Size([1, 1024, 256])
+[I 240413 07:31:51 depth_uformer:1413] layer 0
+[I 240413 07:31:51 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:31:51 depth_uformer:1440] layer 1
+[I 240413 07:31:51 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:31:51 depth_uformer:1531] torch.Size([1, 1024, 512])
+[I 240413 07:32:42 depth_uformer:1413] layer 0
+[I 240413 07:32:42 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:32:43 depth_uformer:1440] layer 1
+[I 240413 07:32:43 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:32:43 depth_uformer:1531] torch.Size([1, 1024, 512])
+[I 240413 07:33:06 depth_uformer:1413] layer 0
+[I 240413 07:33:06 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:33:07 depth_uformer:1440] layer 1
+[I 240413 07:33:07 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:33:07 depth_uformer:1531] torch.Size([1, 1024, 512])
+[I 240413 07:33:48 depth_uformer:1413] layer 0
+[I 240413 07:33:48 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:33:48 depth_uformer:1440] layer 1
+[I 240413 07:33:48 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:33:48 depth_uformer:1531] torch.Size([1, 1024, 512])
+[I 240413 07:34:21 depth_uformer:1413] layer 0
+[I 240413 07:34:21 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:34:21 depth_uformer:1440] layer 1
+[I 240413 07:34:21 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:34:21 depth_uformer:1531] torch.Size([1, 1024, 512])
+[I 240413 07:39:01 depth_uformer:1413] layer 0
+[I 240413 07:39:01 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:39:02 depth_uformer:1440] layer 1
+[I 240413 07:39:02 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:39:02 depth_uformer:1531] torch.Size([1, 1024, 512])
+[I 240413 07:39:44 depth_uformer:1413] layer 0
+[I 240413 07:39:44 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:39:45 depth_uformer:1440] layer 1
+[I 240413 07:39:45 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:39:45 depth_uformer:1531] torch.Size([1, 1024, 512])
+[I 240413 07:40:22 depth_uformer:1413] layer 0
+[I 240413 07:40:22 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:40:23 depth_uformer:1440] layer 1
+[I 240413 07:40:23 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:40:23 depth_uformer:1531] torch.Size([1, 1024, 512])
+[I 240413 07:41:20 depth_uformer:1413] layer 0
+[I 240413 07:41:20 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 07:41:20 depth_uformer:1440] layer 1
+[I 240413 07:41:20 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 07:41:20 depth_uformer:1531] torch.Size([1, 1024, 512])
+[I 240413 10:33:20 depth_uformer:1413] layer 0
+[I 240413 10:33:20 depth_uformer:1414] torch.Size([1, 32, 256, 256])
+[I 240413 10:33:20 depth_uformer:1440] layer 1
+[I 240413 10:33:20 depth_uformer:1441] torch.Size([1, 64, 128, 128])
+[I 240413 10:34:18 depth_uformer:1512] torch.Size([1, 1024, 512])
+[I 240413 10:34:29 depth_uformer:1512] torch.Size([1, 1024, 512])

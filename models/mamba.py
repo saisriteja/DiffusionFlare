@@ -884,12 +884,12 @@ def check_vssm_equals_vmambadp():
     print("init miss align", miss_align) # init miss align 0
 
 
-# if __name__ == "__main__":
-#     # check_vssm_equals_vmambadp()
-#     model = VSSM().to('cuda')
-#     int = torch.randn(4,3,512,512).cuda()
-#     out = model(int)
-#     print(out.shape)
+if __name__ == "__main__":
+    # check_vssm_equals_vmambadp()
+    model = VSSM().to('cuda')
+    int = torch.randn(4,3,512,512).cuda()
+    out = model(int)
+    print(out.shape)
 
-#     while True:
-#         pass
+    # while True:
+    #     pass
