@@ -10,10 +10,10 @@ import numpy as np
 import time
 from torch import einsum
 from logzero import logger
-
-
-
+from net_utils import FeatureRectifyModule as FRM
+from net_utils import FeatureFusionModule as FFM
 import logzero
+
 logzero.logfile("my_logfile.log", maxBytes=1000000, backupCount=3)
 
 
@@ -1083,12 +1083,14 @@ class Uformer(nn.Module):
                  norm_layer=nn.LayerNorm, patch_norm=True,
                  use_checkpoint=False, token_projection='linear', token_mlp='leff',
                  dowsample=Downsample, upsample=Upsample, shift_flag=True, modulator=False, 
+                 ffm_embed_dim = 16,
                  cross_modulator=False, **kwargs):
         super().__init__()
 
         self.num_enc_layers = len(depths)//2
         self.num_dec_layers = len(depths)//2
         self.embed_dim = embed_dim
+        self.ffm_embed_dim = ffm_embed_dim
         self.patch_norm = patch_norm
         self.mlp_ratio = mlp_ratio
         self.token_projection = token_projection
@@ -1097,7 +1099,7 @@ class Uformer(nn.Module):
         self.reso = img_size
         self.pos_drop = nn.Dropout(p=drop_rate)
         self.dd_in = dd_in
-
+        embed_dims  = [ffm_embed_dim*2, ffm_embed_dim*4, ffm_embed_dim*8, ffm_embed_dim*16]
         # stochastic depth
         enc_dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths[:self.num_enc_layers]))] 
         conv_dpr = [drop_path_rate]*depths[4]
@@ -1110,6 +1112,21 @@ class Uformer(nn.Module):
         self.output_proj = OutputProj(in_channel=2*embed_dim, out_channel=in_chans, kernel_size=3, stride=1)
         self.end_conv = nn.Conv2d(3, 6, kernel_size=1, stride=1, padding=0)
         
+        # Fusion Layers
+        self.FRMs = nn.ModuleList([
+            FRM(dim=embed_dims[0], reduction=1),
+            FRM(dim=embed_dims[1], reduction=1),
+            FRM(dim=embed_dims[2], reduction=1),
+            FRM(dim=embed_dims[3], reduction=1)])
+
+
+        norm_fuse=nn.BatchNorm2d
+        self.FFMs = nn.ModuleList([
+                    FFM(dim=embed_dims[0], reduction=1, num_heads=num_heads[0], norm_layer=norm_fuse),
+                    FFM(dim=embed_dims[1], reduction=1, num_heads=num_heads[1], norm_layer=norm_fuse),
+                    FFM(dim=embed_dims[2], reduction=1, num_heads=num_heads[2], norm_layer=norm_fuse),
+                    FFM(dim=embed_dims[3], reduction=1, num_heads=num_heads[3], norm_layer=norm_fuse)
+                    ])
         
         
         # Encoder
@@ -1149,7 +1166,8 @@ class Uformer(nn.Module):
         self.dowsample_0 = dowsample(embed_dim, embed_dim*2)
 
 
-
+        self.input_proj_rgb_1 = InputProj(in_channel=32, out_channel=32, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
+        self.input_proj_depth_1 = InputProj(in_channel=32, out_channel=32, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
         self.encoderlayer_rgb_1 = BasicUformerLayer(dim=embed_dim*2,
                             output_dim=embed_dim*2,
                             input_resolution=(img_size // 2,
@@ -1184,6 +1202,8 @@ class Uformer(nn.Module):
 
 
         self.dowsample_1 = dowsample(embed_dim*2, embed_dim*4)
+        self.input_proj_rgb_2 = InputProj(in_channel=64, out_channel=64, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
+        self.input_proj_depth_2 = InputProj(in_channel=64, out_channel=64, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
         self.encoderlayer_rgb_2 = BasicUformerLayer(dim=embed_dim*4,
                             output_dim=embed_dim*4,
                             input_resolution=(img_size // (2 ** 2),
@@ -1214,6 +1234,9 @@ class Uformer(nn.Module):
                             use_checkpoint=use_checkpoint,
                             token_projection=token_projection,token_mlp=token_mlp,shift_flag=shift_flag)
         self.dowsample_2 = dowsample(embed_dim*4, embed_dim*8)
+        
+        self.input_proj_rgb_3 = InputProj(in_channel=128, out_channel=128, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
+        self.input_proj_depth_3 = InputProj(in_channel=128, out_channel=128, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
         self.encoderlayer_rgb_3 = BasicUformerLayer(dim=embed_dim*8,
                             output_dim=embed_dim*8,
                             input_resolution=(img_size // (2 ** 3),
@@ -1246,6 +1269,7 @@ class Uformer(nn.Module):
         self.dowsample_3 = dowsample(embed_dim*8, embed_dim*16)
 
         # Bottleneck
+        self.input_proj_rgb_4 = InputProj(in_channel=256, out_channel=256, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
         self.conv = BasicUformerLayer(dim=embed_dim*16,
                             output_dim=embed_dim*16,
                             input_resolution=(img_size // (2 ** 4),
@@ -1280,6 +1304,7 @@ class Uformer(nn.Module):
                             modulator=modulator,cross_modulator=cross_modulator)
         
         self.upsample_1 = upsample(embed_dim*16, embed_dim*4)
+        self.upsample_1_conv = Upsample(embed_dim*8, embed_dim*4)
 
         self.decoderlayer_1 = BasicUformerLayer(dim=embed_dim*8,
                             output_dim=embed_dim*8,
@@ -1298,7 +1323,7 @@ class Uformer(nn.Module):
                             modulator=modulator,cross_modulator=cross_modulator)
         
         self.upsample_2 = upsample(embed_dim*8, embed_dim*2)
-
+        self.upsample_2_conv = Upsample(embed_dim * 4 , out_channel=embed_dim * 2)
 
         self.decoderlayer_2 = BasicUformerLayer(dim=embed_dim*4,
                             output_dim=embed_dim*4,
@@ -1318,7 +1343,7 @@ class Uformer(nn.Module):
         
 
         self.upsample_3 = upsample(embed_dim*4, embed_dim)
-
+        self.upsample_3_conv = Upsample(embed_dim * 2, out_channel=embed_dim)
 
         self.decoderlayer_3 = BasicUformerLayer(dim=embed_dim*2,
                             output_dim=embed_dim*2,
@@ -1360,29 +1385,8 @@ class Uformer(nn.Module):
 
     def forward(self, rgb,depth ,mask=None):
 
-        from net_utils import FeatureRectifyModule as FRM
-        from net_utils import FeatureFusionModule as FFM
-
-        embed_dim = 16
-
-        embed_dims  = [embed_dim*2, embed_dim*4, embed_dim*8, embed_dim*16]
+        #embed_dim = 16
         num_heads=[1, 2, 4, 8]
-        # norm_fuse = nn.LayerNorm
-
-        self.FRMs = nn.ModuleList([
-                    FRM(dim=embed_dims[0], reduction=1),
-                    FRM(dim=embed_dims[1], reduction=1),
-                    FRM(dim=embed_dims[2], reduction=1),
-                    FRM(dim=embed_dims[3], reduction=1)])
-
-
-        norm_fuse=nn.BatchNorm2d
-        self.FFMs = nn.ModuleList([
-                    FFM(dim=embed_dims[0], reduction=1, num_heads=num_heads[0], norm_layer=norm_fuse),
-                    FFM(dim=embed_dims[1], reduction=1, num_heads=num_heads[1], norm_layer=norm_fuse),
-                    FFM(dim=embed_dims[2], reduction=1, num_heads=num_heads[2], norm_layer=norm_fuse),
-                    FFM(dim=embed_dims[3], reduction=1, num_heads=num_heads[3], norm_layer=norm_fuse)
-                    ])
 
         # Input Projection
         y_rgb = self.input_proj(rgb)
@@ -1400,20 +1404,14 @@ class Uformer(nn.Module):
         depth_pool0 = self.dowsample_0(depth_conv0)
 
         B, C, H, W = rgb.shape
-        H = H//2
-        W = W//2
-
+        
         # convert to depth map
-        rgb_pool0 = rgb_pool0.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
-        depth_pool0 = depth_pool0.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
+        rgb_pool0 = rgb_pool0.reshape(B, H//2, W//2, -1).permute(0, 3, 1, 2).contiguous()
+        depth_pool0 = depth_pool0.reshape(B, H//2, W//2, -1).permute(0, 3, 1, 2).contiguous()
 
         x_rgb, x_e = self.FRMs[0](rgb_pool0, depth_pool0)
         x_out_0 = self.FFMs[0](x_rgb, x_e)
-
-
-
-        self.input_proj_rgb_1 = InputProj(in_channel=32, out_channel=32, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
-        self.input_proj_depth_1 = InputProj(in_channel=32, out_channel=32, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
+        logger.info('x_out_1: {}'.format(x_out_0.shape))
 
         x_rgb = self.input_proj_rgb_1(x_rgb)
         x_rgb = self.pos_drop(x_rgb)
@@ -1427,21 +1425,14 @@ class Uformer(nn.Module):
         depth_pool1 = self.encoderlayer_depth_1(x_depth,mask=mask)
         depth_pool1 = self.dowsample_1(depth_pool1)
 
-        H = H//2
-        W = W//2
 
-        rgb_pool1 = rgb_pool1.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
-        depth_pool1 = depth_pool1.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
-
+        rgb_pool1 = rgb_pool1.reshape(B, H//4, W//4, -1).permute(0, 3, 1, 2).contiguous()
+        depth_pool1 = depth_pool1.reshape(B, H//4, W//4, -1).permute(0, 3, 1, 2).contiguous()
+        
         x_rgb, x_e = self.FRMs[1](rgb_pool1, depth_pool1)
         x_out_1 = self.FFMs[1](x_rgb, x_e)
 
         logger.info('x_out_1: {}'.format(x_out_1.shape))
-
-
-
-        self.input_proj_rgb_2 = InputProj(in_channel=64, out_channel=64, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
-        self.input_proj_depth_2 = InputProj(in_channel=64, out_channel=64, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
 
         x_rgb = self.input_proj_rgb_2(x_rgb)
         x_rgb = self.pos_drop(x_rgb)
@@ -1455,20 +1446,13 @@ class Uformer(nn.Module):
         depth_pool2 = self.encoderlayer_depth_2(x_depth,mask=mask)
         depth_pool2 = self.dowsample_2(depth_pool2)
 
-        H = H // 2
-        W = W // 2
-
-        rgb_pool2 = rgb_pool2.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
-        depth_pool2 = depth_pool2.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
+        rgb_pool2 = rgb_pool2.reshape(B, H//8, W//8, -1).permute(0, 3, 1, 2).contiguous()
+        depth_pool2 = depth_pool2.reshape(B, H//8, W//8, -1).permute(0, 3, 1, 2).contiguous()
 
         x_rgb, x_e = self.FRMs[2](rgb_pool2, depth_pool2)
         x_out_2 = self.FFMs[2](x_rgb, x_e)
 
         logger.info('x_out_2: {}'.format(x_out_2.shape))
-
-
-        self.input_proj_rgb_3 = InputProj(in_channel=128, out_channel=128, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
-        self.input_proj_depth_3 = InputProj(in_channel=128, out_channel=128, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
 
         x_rgb = self.input_proj_rgb_3(x_rgb)
         x_rgb = self.pos_drop(x_rgb)
@@ -1482,11 +1466,8 @@ class Uformer(nn.Module):
         depth_pool3 = self.encoderlayer_depth_3(x_depth,mask=mask)
         depth_pool3 = self.dowsample_3(depth_pool3)
 
-        H = H // 2
-        W = W // 2
-
-        rgb_pool3 = rgb_pool3.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
-        depth_pool3 = depth_pool3.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
+        rgb_pool3 = rgb_pool3.reshape(B, H//16, W//16, -1).permute(0, 3, 1, 2).contiguous()
+        depth_pool3 = depth_pool3.reshape(B, H//16, W//16, -1).permute(0, 3, 1, 2).contiguous()
 
         x_rgb, x_e = self.FRMs[3](rgb_pool3, depth_pool3)
         x_out_3 = self.FFMs[3](x_rgb, x_e)
@@ -1498,8 +1479,7 @@ class Uformer(nn.Module):
 
 
         # Bottleneck
-        self.input_proj_rgb_3 = InputProj(in_channel=256, out_channel=256, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
-        x_out_3_ = self.input_proj_rgb_3(x_out_3)
+        x_out_3_ = self.input_proj_rgb_4(x_out_3)
         conv4 = self.conv(x_out_3_, mask=mask)
 
 
@@ -1519,21 +1499,18 @@ class Uformer(nn.Module):
         # logger.info("up1 shape: {}".format(up1.shape))
         B, C, H, W = conv2.shape
         conv2 = conv2.reshape(B, C * 32, (H *  W) // 32).contiguous()
-        self.upsample_1_conv = Upsample(embed_dim*8, embed_dim*4)
         conv2 = self.upsample_1_conv(conv2)
         deconv1 = torch.cat([up1,conv2],-1)
         logger.info(deconv1.shape)
         deconv1 = self.decoderlayer_1(deconv1,mask=mask)
         logger.info(deconv1.shape)
 
-        
-        
+    
         
         up2 = self.upsample_2(deconv1)
         conv3 = x_out_1
         B, C, H, W = conv3.shape
         conv3 = conv3.reshape(B, C * 32 * 8  , H // 32 *  W // 8).contiguous()
-        self.upsample_2_conv = Upsample(embed_dim * 4 , out_channel=embed_dim * 2)
         conv3 = self.upsample_2_conv(conv3)
         deconv2 = torch.cat([up2,conv3],-1)
         deconv2 = self.decoderlayer_2(deconv2,mask=mask)
@@ -1543,7 +1520,6 @@ class Uformer(nn.Module):
         conv4 = x_out_0
         B, C, H, W = conv4.shape
         conv4 = conv4.reshape(B, C * 32 * 8 * 8 , H // 32 *  W // 64).contiguous()
-        self.upsample_3_conv = Upsample(embed_dim * 2, out_channel=embed_dim)
         conv4 = self.upsample_3_conv(conv4)
         deconv4 = torch.cat([up3,conv4],-1)
         deconv4 = self.decoderlayer_3(deconv4,mask=mask)
