@@ -131,6 +131,8 @@ class Losses:
         flare = data['flare']
         gamma = data['gamma']
 
+        depth = data['depth']
+
         # logger.info("into infinte loop")
 
         # print(lq.shape)
@@ -144,7 +146,7 @@ class Losses:
 
         # quit()
 
-        output_gen  =  generator(lq)
+        output_gen  =  generator(lq, depth)
         deflare,flare_hat,merge_hat = predict_flare_from_6_channel(input_tensor=output_gen,gamma=gamma)
 
         target = dict()

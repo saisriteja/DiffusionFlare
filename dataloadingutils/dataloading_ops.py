@@ -223,6 +223,7 @@ class Flare_Image_Loader(data.Dataset):
 		  'flare': adjust_gamma_reverse(flare_img),
 		  'lq': adjust_gamma_reverse(merge_img),
 		  'mask': flare_mask,
+		  'depth': cv2.imread(path)
 		  'gamma': gamma}
 
 	def __len__(self):

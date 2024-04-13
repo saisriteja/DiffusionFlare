@@ -1411,8 +1411,6 @@ class Uformer(nn.Module):
         x_out_0 = self.FFMs[0](x_rgb, x_e)
 
 
-        logger.info('x_out_0: {}'.format(x_out_0.shape))
-
 
         self.input_proj_rgb_1 = InputProj(in_channel=32, out_channel=32, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
         self.input_proj_depth_1 = InputProj(in_channel=32, out_channel=32, kernel_size=3, stride=1, act_layer=nn.LeakyReLU)
@@ -1513,11 +1511,12 @@ class Uformer(nn.Module):
         x_out_3 = self.upsample_0(x_out_3)
         deconv0 = torch.cat([up0,x_out_3],-1)
         deconv0 = self.decoderlayer_0(deconv0,mask=mask)
+
+
+
         conv2 = x_out_2
         up1 = self.upsample_1(deconv0)
-
         # logger.info("up1 shape: {}".format(up1.shape))
-
         B, C, H, W = conv2.shape
         conv2 = conv2.reshape(B, C * 32, (H *  W) // 32).contiguous()
         self.upsample_1_conv = Upsample(embed_dim*8, embed_dim*4)
