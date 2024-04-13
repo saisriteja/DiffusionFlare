@@ -1,4 +1,3 @@
-from sympy import O
 import torch
 import torch.utils.data as data
 import torchvision.transforms as transforms
@@ -42,7 +41,7 @@ def remove_background(image):
 
 
 class Flare_Image_Loader(data.Dataset):
-	def __init__(self, image_path ,transform_base,transform_flare,mask_type=None, flare_path = None):
+	def __init__(self, image_path , transform_base,transform_flare,mask_type=None, flare_path = None):
 		self.ext = ['png','jpeg','jpg','bmp','tif']
 		self.data_list=[]
 		[self.data_list.extend(glob.glob(image_path + '/*.' + e)) for e in self.ext]
@@ -54,6 +53,10 @@ class Flare_Image_Loader(data.Dataset):
 		self.reflective_dict={}
 		self.reflective_list=[]
 		self.reflective_name_list=[]
+  
+		self.depth_dict={}
+		self.depth_list=[]
+		self.depth_name_list=[]
 
 
 		self.light_flag=False
@@ -65,8 +68,8 @@ class Flare_Image_Loader(data.Dataset):
 		self.img_size=transform_base['img_size']
 
 		self.transform_base=transforms.Compose([transforms.RandomCrop((self.img_size,self.img_size),pad_if_needed=True,padding_mode='reflect'),
-							  transforms.RandomHorizontalFlip(),
-							  transforms.RandomVerticalFlip()
+							#   transforms.RandomHorizontalFlip(),
+							#   transforms.RandomVerticalFlip()
                               ])
 
 		self.transform_flare=transforms.Compose([transforms.RandomAffine(degrees=(0,360),scale=(transform_flare['scale_min'],transform_flare['scale_max']),translate=(transform_flare['translate']/1440,transform_flare['translate']/1440),shear=(-transform_flare['shear'],transform_flare['shear'])),
@@ -83,12 +86,18 @@ class Flare_Image_Loader(data.Dataset):
 		# load base image
 		img_path=self.data_list[index]
 		base_img= Image.open(img_path).convert('RGB')
+		depth_img = Image.open(img_path.replace('Flickr24K', 'depth').replace('.jpg', '_depth.png')).convert('RGB')
 		
 		gamma=np.random.uniform(1.8,2.2)
 		to_tensor=transforms.ToTensor()
 		adjust_gamma=RandomGammaCorrection(gamma)
 		adjust_gamma_reverse=RandomGammaCorrection(1/gamma)
 		color_jitter=transforms.ColorJitter(brightness=(0.8,3),hue=0.0)
+
+		depth_img = to_tensor(depth_img)
+		depth_img = self.transform_base(depth_img)
+
+
 		if self.transform_base is not None:
 			base_img=to_tensor(base_img)
 			base_img=adjust_gamma(base_img)
@@ -96,6 +105,12 @@ class Flare_Image_Loader(data.Dataset):
 		else:
 			base_img=to_tensor(base_img)
 			base_img=adjust_gamma(base_img)
+
+		# logger.info('depth_img shape: %s', depth_img.size)
+		# print('================================================')
+
+
+
 		sigma_chi=0.01*np.random.chisquare(df=1)
 		base_img=Normal(base_img,sigma_chi).sample()
 		gain=np.random.uniform(0.5,1.2)
@@ -182,6 +197,8 @@ class Flare_Image_Loader(data.Dataset):
 			return {'gt': adjust_gamma_reverse(base_img),
 		   'flare': adjust_gamma_reverse(flare_img),
 		   'lq': adjust_gamma_reverse(merge_img),
+			# 'depth': Image.open(self.depth_list[index]),
+			'depth': depth_img,
 		   'gamma':gamma}
 		
 
@@ -223,12 +240,30 @@ class Flare_Image_Loader(data.Dataset):
 		  'flare': adjust_gamma_reverse(flare_img),
 		  'lq': adjust_gamma_reverse(merge_img),
 		  'mask': flare_mask,
-		  'depth': cv2.imread(path)
+		  'depth': depth_img,
 		  'gamma': gamma}
 
 	def __len__(self):
 		return len(self.data_list)
 	
+	def load_depth_images(self, depth_name, depth_path):
+		depth_list = glob.glob(depth_path + '/*.png')
+		depth_list = sorted(depth_list)
+		self.depth_name_list.append(depth_name)
+		self.depth_dict[depth_name] = depth_list
+		self.depth_list.append(depth_list)
+		len_depth_list = len(self.depth_dict[depth_name])
+
+		print("The path is", depth_path)
+
+		if len_depth_list == 0:
+			print("ERROR: Depth images are not loaded properly")
+		else:
+			print("Depth images:", depth_name, " are loaded successfully with", str(len_depth_list), "examples")
+
+		logger.debug("Total depth images: %d", len(self.depth_list))
+		print("Now we have", len(self.depth_list), 'depth images')
+  
 	def load_scattering_flare(self,flare_name,flare_path):
 		flare_list=[]
 		[flare_list.extend(glob.glob(flare_path + '/*.' + e)) for e in self.ext]
@@ -293,10 +328,13 @@ class Flare7kpp_Pair_Loader(Flare_Image_Loader):
 							  opt['transform_base'],
 							  opt['transform_flare'],
 							  None)
+  
+		depth_dict = opt['depth_path']
 		scattering_dict=opt['scattering_dict']
 		reflective_dict=opt['reflective_dict']
 		light_dict=opt['light_dict']
 
+		
 		# defualt not use light mask if opt['use_light_mask'] is not declared
 		if 'data_ratio' not in opt or len(opt['data_ratio'])==0:
 			self.data_ratio = [1] * len(scattering_dict)
@@ -306,6 +344,9 @@ class Flare7kpp_Pair_Loader(Flare_Image_Loader):
 		if len(scattering_dict) !=0:
 			for key in scattering_dict.keys():
 				self.load_scattering_flare(key,scattering_dict[key])
+		# if len(depth_dict) !=0:
+		# 	for key in depth_dict.keys():
+		# 		self.load_depth_images(key,depth_dict[key])
 		if len(reflective_dict) !=0:
 			for key in reflective_dict.keys():
 				self.load_reflective_flare(key,reflective_dict[key])
@@ -317,58 +358,82 @@ class Flare7kpp_Pair_Loader(Flare_Image_Loader):
 
 
 
-if __name__ == '__main__':
+# if __name__ == '__main__':
 
-	# make a sample data loader
-	image_path = '/media/cilab/saisriteja/flare/dataset/Flickr24K'
-	flare_path = '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare7K/Scattering_Flare/Compound_Flare'
-	light_path = '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare-R/Light_Source'
-	reflective_path = '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare7K/Reflective_Flare'
+# 	# make a sample data loader
+# 	image_path = '/media/cilab/saisriteja/flare/dataset/Flickr24K'
+# 	depth_path = '/media/cilab/saisriteja/flare/dataset/depth'
+# 	flare_path = '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare7K/Scattering_Flare/Compound_Flare'
+# 	light_path = '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare-R/Light_Source'
+# 	reflective_path = '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare7K/Reflective_Flare'
 
-	transform_base={'img_size': 512}
-	transform_flare={'scale_min': 0.8, 'scale_max': 1.2, 'translate': 100, 'shear': 20}
-	mask_type = 'luminance'
+# 	transform_base={'img_size': 512}
+# 	transform_flare={'scale_min': 0.8, 'scale_max': 1.2, 'translate': 100, 'shear': 20}
+# 	mask_type = 'luminance'
 
-	opt = {
-		'dataset':{
-			'train':{
-				'name': 'Flare7Kpp',
-				'type': 'Flare7kpp_Pair_Loader',
-				'image_path': '/media/cilab/saisriteja/flare/dataset/Flickr24K',
-				'scattering_dict': {
-					'Flare7k_scattering': '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare7K/Scattering_Flare/Compound_Flare',
-					'Real_scattering1': '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare-R/Compound_Flare'
-				},
-				'reflective_dict': {
-					'Flare7k_reflective': '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare7K/Reflective_Flare',
-					'Real_reflective1': None
-				},
-				'light_dict': {
-					'Flare7k_light': '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare7K/Scattering_Flare/Light_Source',
-					'Real_light1': '/media/cilab/data/saisriteja/flare/dataset/Flare7Kpp/Flare-R/Light_Source'
-				},
-				'data_ratio': [0.5, 0.5],
-				'transform_base': {
-					'img_size': 512
-				},
-				'transform_flare': {
-					'scale_min': 0.7,
-					'scale_max': 1.2,
-					'translate': 100,
-					'shear': 20
-				},
-				'mask_type': None
-		}
-		}
-	}
+# 	opt = {
+# 		'dataset':{
+# 			'train':{
+# 				'name': 'Flare7Kpp',
+# 				'type': 'Flare7kpp_Pair_Loader',
+# 				'image_path': '/data/tmp_teja//dataset/Flickr24K',
+				
+# 				'scattering_dict': {
+# 					'Flare7k_scattering': '/data/tmp_teja//dataset/Flare7Kpp/Flare7K/Scattering_Flare/Compound_Flare',
+# 					'Real_scattering1': '/data/tmp_teja//dataset/Flare7Kpp/Flare-R/Compound_Flare'
+# 				},
+# 				'reflective_dict': {
+# 					'Flare7k_reflective': '/data/tmp_teja//dataset/Flare7Kpp/Flare7K/Reflective_Flare',
+# 					'Real_reflective1': None
+# 				},
+# 				'depth_dict': {
+# 					'depth_images': '/data/tmp_teja/dataset/depth',
+					
+# 				},
+# 				'light_dict': {
+# 					'Flare7k_light': '/data/tmp_teja//dataset/Flare7Kpp/Flare7K/Scattering_Flare/Light_Source',
+# 					'Real_light1': '/data/tmp_teja//dataset/Flare7Kpp/Flare-R/Light_Source'
+# 				},
+# 				'data_ratio': [0.5, 0.5],
+# 				'transform_base': {
+# 					'img_size': 512
+# 				},
+# 				'transform_flare': {
+# 					'scale_min': 0.7,
+# 					'scale_max': 1.2,
+# 					'translate': 100,
+# 					'shear': 20
+# 				},
+# 				'mask_type': None
+# 		}
+# 		}
+# 	}
 
-	dataset = Flare7kpp_Pair_Loader(opt['dataset']['train'])
-	sample = dataset[0]
+# 	dataset = Flare7kpp_Pair_Loader(opt['dataset']['train'])
+# 	sample = dataset[0]
+# 	print(sample.keys())
+
+# 	print(sample['gt'].shape)
+# 	print(sample['flare'].shape)
+# 	print(sample['lq'].shape)
+# 	# print(sample['mask'].shape)
+# 	print(sample['gamma'])
+# 	print(sample['depth'].shape)
 
 
-	print(sample['gt'].shape)
-	print(sample['flare'].shape)
-	print(sample['lq'].shape)
-	# print(sample['mask'].shape)
-	print(sample['gamma'])
+# 	# save the images to check
+# 	import matplotlib.pyplot as plt
+# 	import numpy as np
 
+# 	gt_img = sample['gt'].numpy().transpose(1, 2, 0)
+# 	flare_img = sample['flare'].numpy().transpose(1, 2, 0)
+# 	lq_img = sample['lq'].numpy().transpose(1, 2, 0)
+# 	depth_img = sample['depth'].numpy().transpose(1, 2, 0)
+
+# 	stack_imgs = np.hstack((gt_img, flare_img, lq_img, depth_img))
+
+# 	import cv2
+
+# 	# convert to rgb from brg
+# 	stack_imgs = cv2.cvtColor(stack_imgs, cv2.COLOR_BGR2RGB)
+# 	cv2.imwrite('sample.png', stack_imgs * 255)

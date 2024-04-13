@@ -11,6 +11,7 @@ from models.restormer import Restormer
 from models.uformer import Uformer
 from models.generator import define_G
 from models.nafnet import NAFNet
+from models.depth_uformer import Uformer as dformer
 from utils import losses
 import os
 import wandb
@@ -46,6 +47,19 @@ def make_generator(name = 'pix2pix'):
         pretrained_dict = torch.load('./models/l1_lpipsvgg.pth')
         gen.load_state_dict(pretrained_dict, strict =False)
         gen.train() 
+        
+    elif name == 'depth_uformer':
+            gen = dformer(img_size=512, 
+                          embed_dim=16,
+                          depths=[2, 2, 2, 2, 2, 2, 2, 2, 2],
+                          win_size=8,
+                          mlp_ratio=4.,
+                          token_projection='linear', 
+                          token_mlp='leff', 
+                          modulator=True, 
+                          shift_flag=False)
+            
+            gen.train()
 
 
     elif name == 'mamba':
@@ -96,10 +110,18 @@ from utils.moving_average import moving_average
 from tqdm import tqdm
 
 def process_loss(log, losses, weights = None):
+
+    # print(weights)
+    # print('=========')
+
     loss = 0
     for k in losses:
         if k not in log:
             log[k] = 0
+
+        # print(losses[k])
+        # print(weights[k])
+
         log[k] += losses[k].item() * (weights[k] if weights is not None else 1)
         loss = loss + losses[k]
 
@@ -130,7 +152,6 @@ class Losses:
         gt = data['gt']
         flare = data['flare']
         gamma = data['gamma']
-
         depth = data['depth']
 
         # logger.info("into infinte loop")
@@ -158,6 +179,8 @@ class Losses:
         l1_base  = self.criterionFeat(target['deflare'], data['gt'])
 
         loss_vgg = self.criterionVGG(deflare, gt)
+        loss_vgg_flare = self.criterionVGG(flare_hat, flare)
+
         pred_fake = discriminator(torch.cat([lq, deflare], axis=1))
         loss_adv = self.criterionGAN(pred_fake, 1)
 
@@ -174,6 +197,7 @@ class Losses:
 
         return {"G_vgg": loss_vgg, "G_adv": loss_adv, 
                 "G_adv_feat": loss_adv_feat, 'G_l1_flare': l1_flare, 
+                'G_vgg_flare':loss_vgg_flare,
                 'G_l1_base': l1_base}
 
     def calc_D_losses(self,data, generator, discriminator, replay_pool):
@@ -182,9 +206,10 @@ class Losses:
         gt = data['gt']
         flare = data['flare']
         gamma = data['gamma']
+        depth = data['depth']
 
         with torch.no_grad():
-            output_gen  =  generator(lq)
+            output_gen  =  generator(lq, depth)
             # fake = replay_pool.query({"input": data.detach(), "output": output_gen.detach()})
             # fake = replay_pool.query({"input": data, "output": output_gen})
             deflare,flare_hat,merge_hat = predict_flare_from_6_channel(input_tensor=output_gen,gamma=gamma)
@@ -244,8 +269,9 @@ def test(epoch, iteration, generator_ema, val_loader, checkpoint_dir):
             lq = data['lq']
             gt = data['gt']
             flare = data['flare']
+            depth = data['depth']
             gamma = data['gamma']
-            output_gen  =  generator_ema(lq)
+            output_gen  =  generator_ema(lq,depth)
             deflare,flare_hat,merge_hat = predict_flare_from_6_channel(input_tensor=output_gen,gamma=gamma)
             break
         generator_ema.train()

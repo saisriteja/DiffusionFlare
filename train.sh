@@ -1,1 +1,1 @@
-accelerate launch --multi_gpu --num_processes 2 train.py
+accelerate launch --num_processes 1 --mixed_precision fp16 train.py

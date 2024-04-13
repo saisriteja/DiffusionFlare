@@ -1,12 +1,12 @@
 batch_size = 2
-num_workers = 16
-epochs = 50
+num_workers = 8
+epochs = 1
 
 [generator]
-name = 'nafnet'
+name = 'depth_uformer'
 
 [wandb]
-name = 'nafnet'
+name = 'depth_uformer'
 notes = "I am testing the code for flare7kpp dataset with pix2pixhd"
 
 [loss_weights]
@@ -16,6 +16,7 @@ G_adv = 10.0
 G_adv_feat = 10
 G_l1_flare = 1.0
 G_l1_base = 2.0
+G_vgg_flare = 10.0
 
 [loss_weights.discriminator]
 D_true = 1.0
@@ -24,20 +25,21 @@ D_false = 1.0
 [dataset.train]
 name = "Flare7Kpp"
 type = "Flare7kpp_Pair_Loader"
-image_path = "../dataset/Flickr24K"
+image_path = "/data/tmp_teja/dataset/Flickr24K"
+depth_path = "/data/tmp_teja/dataset/depth"
 data_ratio = [ 0.5, 0.5]
 
 
 [dataset.train.scattering_dict]
-Flare7k_scattering = "../dataset/Flare7Kpp/Flare7K/Scattering_Flare/Compound_Flare"
-Real_scattering1 = "../dataset/Flare7Kpp/Flare-R/Compound_Flare"
+Flare7k_scattering = "/data/tmp_teja/dataset/Flare7Kpp/Flare7K/Scattering_Flare/Compound_Flare"
+Real_scattering1 = "/data/tmp_teja/dataset/Flare7Kpp/Flare-R/Compound_Flare"
 
 [dataset.train.reflective_dict]
-Flare7k_reflective = "../dataset/Flare7Kpp/Flare7K/Reflective_Flare"
+Flare7k_reflective = "/data/tmp_teja/dataset/Flare7Kpp/Flare7K/Reflective_Flare"
 
 [dataset.train.light_dict]
-Flare7k_light = "../dataset/Flare7Kpp/Flare7K/Scattering_Flare/Light_Source"
-Real_light1 = "../dataset/Flare7Kpp/Flare-R/Light_Source"
+Flare7k_light = "/data/tmp_teja/dataset/Flare7Kpp/Flare7K/Scattering_Flare/Light_Source"
+Real_light1 = "/data/tmp_teja/dataset/Flare7Kpp/Flare-R/Light_Source"
 
 [dataset.train.transform_base]
 img_size = 512

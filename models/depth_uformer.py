@@ -10,8 +10,8 @@ import numpy as np
 import time
 from torch import einsum
 from logzero import logger
-from net_utils import FeatureRectifyModule as FRM
-from net_utils import FeatureFusionModule as FFM
+from models.net_utils import FeatureRectifyModule as FRM
+from models.net_utils import FeatureFusionModule as FFM
 import logzero
 
 logzero.logfile("my_logfile.log", maxBytes=1000000, backupCount=3)
@@ -1411,7 +1411,7 @@ class Uformer(nn.Module):
 
         x_rgb, x_e = self.FRMs[0](rgb_pool0, depth_pool0)
         x_out_0 = self.FFMs[0](x_rgb, x_e)
-        logger.info('x_out_1: {}'.format(x_out_0.shape))
+        #logger.info('x_out_1: {}'.format(x_out_0.shape))
 
         x_rgb = self.input_proj_rgb_1(x_rgb)
         x_rgb = self.pos_drop(x_rgb)
@@ -1432,7 +1432,7 @@ class Uformer(nn.Module):
         x_rgb, x_e = self.FRMs[1](rgb_pool1, depth_pool1)
         x_out_1 = self.FFMs[1](x_rgb, x_e)
 
-        logger.info('x_out_1: {}'.format(x_out_1.shape))
+        #logger.info('x_out_1: {}'.format(x_out_1.shape))
 
         x_rgb = self.input_proj_rgb_2(x_rgb)
         x_rgb = self.pos_drop(x_rgb)
@@ -1452,7 +1452,7 @@ class Uformer(nn.Module):
         x_rgb, x_e = self.FRMs[2](rgb_pool2, depth_pool2)
         x_out_2 = self.FFMs[2](x_rgb, x_e)
 
-        logger.info('x_out_2: {}'.format(x_out_2.shape))
+        #logger.info('x_out_2: {}'.format(x_out_2.shape))
 
         x_rgb = self.input_proj_rgb_3(x_rgb)
         x_rgb = self.pos_drop(x_rgb)
@@ -1472,7 +1472,7 @@ class Uformer(nn.Module):
         x_rgb, x_e = self.FRMs[3](rgb_pool3, depth_pool3)
         x_out_3 = self.FFMs[3](x_rgb, x_e)
 
-        logger.info('x_out_3: {}'.format(x_out_3.shape))
+        #logger.info('x_out_3: {}'.format(x_out_3.shape))
 
         
         # x_out_0 to 3 consists of vital information
@@ -1496,14 +1496,14 @@ class Uformer(nn.Module):
 
         conv2 = x_out_2
         up1 = self.upsample_1(deconv0)
-        # logger.info("up1 shape: {}".format(up1.shape))
+        # #logger.info("up1 shape: {}".format(up1.shape))
         B, C, H, W = conv2.shape
         conv2 = conv2.reshape(B, C * 32, (H *  W) // 32).contiguous()
         conv2 = self.upsample_1_conv(conv2)
         deconv1 = torch.cat([up1,conv2],-1)
-        logger.info(deconv1.shape)
+        #logger.info(deconv1.shape)
         deconv1 = self.decoderlayer_1(deconv1,mask=mask)
-        logger.info(deconv1.shape)
+        #logger.info(deconv1.shape)
 
     
         
