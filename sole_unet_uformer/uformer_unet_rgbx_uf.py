@@ -1318,16 +1318,6 @@ class Uformer(nn.Module):
 
 
 
-
-
-
-
-
-
-
-
-
-
         # Bottleneck
         self.conv = BasicUformerLayer(dim=embed_dim*16,
                             output_dim=embed_dim*16,
@@ -1343,6 +1333,7 @@ class Uformer(nn.Module):
                             norm_layer=norm_layer,
                             use_checkpoint=use_checkpoint,
                             token_projection=token_projection,token_mlp=token_mlp,se_layer=se_layer)
+
 
         # Decoder
         self.upsample_0 = upsample(embed_dim*16, embed_dim*8)
@@ -1467,7 +1458,6 @@ class Uformer(nn.Module):
         rgb_pool0 = self.rgb_dowsample_0(rgb_conv0)
         depth_conv0 = self.depth_encoderlayer_0(y_depth,mask=mask)
         depth_pool0 = self.depth_dowsample_0(depth_conv0)
-        info['depth_pool0'] = depth_pool0
         # feature fusion 
         rgb_pool0 = rgb_pool0.transpose(1,2).reshape(-1,embed_dims[0],self.reso//2,self.reso//2)
         depth_pool0 = depth_pool0.transpose(1,2).reshape(-1,embed_dims[0],self.reso//2,self.reso//2)
@@ -1490,23 +1480,15 @@ class Uformer(nn.Module):
 
         pool1_depth = pool1_depth.reshape(-1,embed_dims[1],self.reso//4 * self.reso//4).transpose(1,2)
         pool1_rgb = pool1_rgb.reshape(-1,embed_dims[1],self.reso//4 * self.reso//4).transpose(1,2)
-
-
         depth_conv2 = self.depth_encoderlayer_2(pool1_depth,mask=mask)
         depth_pool2 = self.depth_dowsample_2(depth_conv2)
         rgb_conv2 = self.rgb_encoderlayer_2(pool1_rgb,mask=mask)
         rgb_pool2 = self.rgb_dowsample_2(rgb_conv2)
-
         # feature fusion 2
         depth_pool2 = depth_pool2.transpose(1,2).reshape(-1,embed_dims[2],self.reso//8,self.reso//8)
         rgb_pool2 = rgb_pool2.transpose(1,2).reshape(-1,embed_dims[2],self.reso//8,self.reso//8)
         pool2_rgb, pool2_depth = self.frm2(rgb_pool2, depth_pool2)
         out2 = self.ffm2(pool2_rgb, pool2_depth)
-
-        info['pool2_depth'] = depth_pool2
-        info['pool2_rgb'] = rgb_pool2
-        info['pool2'] = pool2_rgb
-        info['out2'] = out2
 
 
         # reshaping and pooling the layer 3
@@ -1514,30 +1496,18 @@ class Uformer(nn.Module):
         pool2_rgb = pool2_rgb.reshape(-1,embed_dims[2],self.reso//8 * self.reso//8).transpose(1,2)
         depth_conv3 = self.depth_encoderlayer_3(pool2_depth,mask=mask)
         depth_pool3 = self.depth_dowsample_3(depth_conv3)
-
         rgb_conv3 = self.rgb_encoderlayer_3(pool2_rgb,mask=mask)
         rgb_pool3 = self.rgb_dowsample_3(rgb_conv3)
-
         depth_pool3 = depth_pool3.transpose(1,2).reshape(-1,embed_dims[3],self.reso//16,self.reso//16)
         rgb_pool3 = rgb_pool3.transpose(1,2).reshape(-1,embed_dims[3],self.reso//16,self.reso//16)
-
         pool3_rgb, pool3_depth = self.frm3(rgb_pool3, depth_pool3)
         out3 = self.ffm3(pool3_rgb, pool3_depth)
 
 
-        # print(out3.shape)
-        # print(pool3_depth.shape)
-
-
-
-        # conv2 = self.encoderlayer_2(pool1,mask=mask)
-        # pool2 = self.dowsample_2(conv2)
-        # conv3 = self.encoderlayer_3(pool2,mask=mask)
-        # pool3 = self.dowsample_3(conv3)
-
         # Bottleneck
         out3 = out3.reshape(-1,embed_dims[3],self.reso//16 * self.reso//16).transpose(1,2)
         conv4 = self.conv(out3, mask=mask)
+
 
         #Decoder
         up0 = self.upsample_0(conv4)
