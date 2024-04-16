@@ -49,8 +49,7 @@ for layer in model_layers:
 
           # load the weights from the og_uformer to the model
           model.state_dict()[layer].copy_(og_uformer.state_dict()[new_layer_name])
-          
-quit()
+
 
 
 
@@ -127,8 +126,8 @@ with torch.no_grad():
 import cv2
 from PIL import Image, ImageChops
 
-flare_path = 'debug/flare.png'
-blend_path = 'debug/blend.png'
+flare_path = 'debug/output_deflare.png'
+blend_path = 'debug/output_flare.png'
 
 img_path = "test_psnr.jpeg"
 merge_img = Image.open(img_path)

@@ -2,3 +2,4 @@ MNIST/
 wandb/
 iitm_data/
 ckpts/
+sole_unet_uformer/debug/*.png

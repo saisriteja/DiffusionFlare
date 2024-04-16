@@ -185,5 +185,4 @@ class FeatureFusionModule(nn.Module):
         x1, x2 = self.cross(x1, x2) 
         merge = torch.cat((x1, x2), dim=-1)
         merge = self.channel_emb(merge, H, W)
-        
         return merge
