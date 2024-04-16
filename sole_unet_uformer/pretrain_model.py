@@ -1,5 +1,7 @@
 from heapq import merge
-from uformer_unet import Uformer
+# from uformer_unet import Uformer
+from uformer_unet_rgbx_uf import Uformer
+
 
 import torch
 
@@ -81,7 +83,7 @@ depth_tensor = depth_tensor/255.0
 # Forward pass
 with torch.no_grad():
 #     op, info = gen(img_tensor,depth_tensor)
-     op, info = model(img_tensor)
+     op, info = model(img_tensor, depth_tensor)
 
 
 
@@ -116,24 +118,52 @@ cv2.imwrite(blend_path, flare_img_predicted)
 for layer, f_maps in info.items():
      print(f"{layer} -> {f_maps.shape}")
 
-     B, N, C = f_maps.shape
-     # reshape it B, sqrt(N), sqrt(N), C
-     f_maps = f_maps.view(B, int(N**0.5), int(N**0.5), C)
-     # stack of all them in a grid of size np.sqrt(C)
-     rows = np.sqrt(C)
-     cols = np.sqrt(C)
+     if len(f_maps.shape) == 4:
+          print(f_maps.shape)
 
-     rows = int(rows)
-     cols = int(cols)
+          B, C, H, W = f_maps.shape
+          # stack of all them in a grid of size np.sqrt(C)
+          rows = np.sqrt(C)
+          cols = np.sqrt(C)
 
-     plt.figure(figsize=(rows, cols))
-     for i in range(rows):
-          for j in range(cols):
-               plt.subplot(rows, cols, i*cols+j+1)
-               plt.imshow(f_maps[0, :, :, i*cols+j].cpu().numpy(), cmap='gray')
-               plt.axis('off')
-     
-     # save the fig
-     plt.savefig(f"{debug_path}/{layer}.png")
-     plt.close()
-     # save the output of the neural network
+          rows = int(rows)
+          cols = int(cols)
+
+          plt.figure(figsize=(rows, cols))
+          for i in range(rows):
+               for j in range(cols):
+                    plt.subplot(rows, cols, i*cols+j+1)
+                    plt.imshow(f_maps[0, i*cols+j].cpu().numpy(), cmap='gray')
+                    plt.axis('off')
+
+          # save the fig
+          plt.savefig(f"{debug_path}/{layer}.png")
+          plt.close()
+          
+
+
+
+
+     if len(f_maps.shape) == 3:
+          
+          B, N, C = f_maps.shape
+          # reshape it B, sqrt(N), sqrt(N), C
+          f_maps = f_maps.view(B, int(N**0.5), int(N**0.5), C)
+          # stack of all them in a grid of size np.sqrt(C)
+          rows = np.sqrt(C)
+          cols = np.sqrt(C)
+
+          rows = int(rows)
+          cols = int(cols)
+
+          plt.figure(figsize=(rows, cols))
+          for i in range(rows):
+               for j in range(cols):
+                    plt.subplot(rows, cols, i*cols+j+1)
+                    plt.imshow(f_maps[0, :, :, i*cols+j].cpu().numpy(), cmap='gray')
+                    plt.axis('off')
+          
+          # save the fig
+          plt.savefig(f"{debug_path}/{layer}.png")
+          plt.close()
+          # save the output of the neural network 

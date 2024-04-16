@@ -1,0 +1,1 @@
+source /data/tmp_teja/prince_uformer/DiffusionFlare/env/bin/activate
