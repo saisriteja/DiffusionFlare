@@ -57,7 +57,11 @@ for layer in model_layers:
 
 
 
+common_layers = list(set(model_layers).intersection(og_layers))
 
+for layer in common_layers:
+     model.state_dict()[layer].copy_(og_uformer.state_dict()[layer])
+     print(f"loaded the layer {layer} to {layer} in the model")
 
 
 
