@@ -43,12 +43,17 @@ for layer in model_layers:
           # load the weights from the og_uformer to the model
           model.state_dict()[layer].copy_(og_uformer.state_dict()[new_layer_name])
 
+          print(f"loaded the layer {new_layer_name} to {layer} in the model")
+
+
      if 'depth' in layer:
           # remove the rgb from the layer
           new_layer_name = layer.replace('depth_', '')
 
           # load the weights from the og_uformer to the model
           model.state_dict()[layer].copy_(og_uformer.state_dict()[new_layer_name])
+
+          print(f"loaded the layer {new_layer_name} to {layer} in the model")
 
 
 

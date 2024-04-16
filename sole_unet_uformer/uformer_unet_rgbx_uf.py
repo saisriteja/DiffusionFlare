@@ -1540,19 +1540,23 @@ class Uformer(nn.Module):
         # info['y'] = y
         y=self.activation(y)
 
-        info['conv0'] = out0
-        info['conv1'] = out1
-        info['conv2'] = out2
-        info['conv3'] = out3
-        info['conv4'] = conv4
-        info['deconv0'] = deconv0
-        info['deconv1'] = deconv1
-        info['deconv2'] = deconv2
-        info['deconv3'] = deconv3
-        info['upsample_0'] = up0
-        info['upsample_1'] = up1
-        info['upsample_2'] = up2
-        info['upsample_3'] = up3
+        # info['conv0'] = out0
+        # info['conv1'] = out1
+        # info['conv2'] = out2
+        # info['conv3'] = out3
+
+        info['rgb_pool0'] = rgb_pool0
+        info['depth_pool0'] = depth_pool0
+
+        # info['conv4'] = conv4
+        # info['deconv0'] = deconv0
+        # info['deconv1'] = deconv1
+        # info['deconv2'] = deconv2
+        # info['deconv3'] = deconv3
+        # info['upsample_0'] = up0
+        # info['upsample_1'] = up1
+        # info['upsample_2'] = up2
+        # info['upsample_3'] = up3
         return y, info
 
     def flops(self):
