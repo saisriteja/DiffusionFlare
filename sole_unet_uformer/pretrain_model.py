@@ -1,6 +1,7 @@
 from heapq import merge
 # from uformer_unet import Uformer
-from uformer_unet_rgbx_uf import Uformer
+from uformer_unet_rgbx_uf import Uformer as dformer
+from uformer_unet import Uformer
 
 
 import torch
@@ -16,9 +17,45 @@ def load_params(model_path):
           return full_model
 
 
-pretrain_dir = '/data/tmp_teja/prince_uformer/DiffusionFlare/net_g_last.pth'
-model=Uformer(img_size=512,img_ch=3,output_ch=6)
-model.load_state_dict(load_params(pretrain_dir))
+# pretrain_dir = '/data/tmp_teja/prince_uformer/DiffusionFlare/net_g_last.pth'
+pretrain_dir = '/home/saiteja/Desktop/uformer_rgbx/Flare7K/net_g_last.pth'
+model=dformer(img_size=512,img_ch=3,output_ch=6)
+
+
+og_uformer = Uformer(img_size=512,img_ch=3,output_ch=6)
+og_uformer.load_state_dict(load_params(pretrain_dir))
+
+
+
+# load all the weights from the pretrain model of similar layers 
+# get all the layer names in the og_uformer and the model
+og_layers = og_uformer.state_dict().keys()
+model_layers = model.state_dict().keys()
+
+
+# print('the common layers', set(og_layers) & set(model_layers))
+# check if rgb is in model_layers
+for layer in model_layers:
+     if 'rgb' in layer:
+          # remove the rgb from the layer
+          new_layer_name = layer.replace('rgb_', '')
+
+          # load the weights from the og_uformer to the model
+          model.state_dict()[layer].copy_(og_uformer.state_dict()[new_layer_name])
+
+     if 'depth' in layer:
+          # remove the rgb from the layer
+          new_layer_name = layer.replace('depth_', '')
+
+          # load the weights from the og_uformer to the model
+          model.state_dict()[layer].copy_(og_uformer.state_dict()[new_layer_name])
+          
+quit()
+
+
+
+
+
 
 
 import sys
