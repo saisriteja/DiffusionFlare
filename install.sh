@@ -1,2 +1,1 @@
-pip install pyheif
-pip install diffusers
+pip install -r requirements.txt

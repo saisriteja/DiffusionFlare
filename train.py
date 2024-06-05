@@ -1,86 +1,80 @@
-import wandb
-from utils import marginal_prob_std, diffusion_coeff
-
-
-
-#@title Set up the SDE
-import functools
-
-device = 'cuda' #@param ['cuda', 'cpu'] {'type':'string'}
-
-sigma =  25.0#@param {'type':'number'}
-marginal_prob_std_fn = functools.partial(marginal_prob_std, sigma=sigma, device=device)
-diffusion_coeff_fn = functools.partial(diffusion_coeff, sigma=sigma, device=device)
-
-
-#@title Training (double click to expand or collapse)
+# Training script for the CustomUNet model
 import torch
-import functools
-from torch.optim import Adam
+import torch.nn as nn
+import torch.optim as optim
 from torch.utils.data import DataLoader
-import torchvision.transforms as transforms
-from torchvision.datasets import MNIST
-import tqdm.notebook
-
-
-from utils import ScoreNet, loss_fn
-
-
-# score_model = torch.nn.DataParallel(ScoreNet(marginal_prob_std=marginal_prob_std_fn))
-
-from accelerate import Accelerator
-accelerator = Accelerator()
-
-
-
-
-
-
-n_epochs =   5#@param {'type':'integer'}
-## size of a mini-batch
-batch_size =  32 #@param {'type':'integer'}
-## learning rate
-lr=1e-4 #@param {'type':'number'}
-
-dataset = MNIST('.', train=True, transform=transforms.ToTensor(), download=True)
-data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=4)
-
-score_model = ScoreNet(marginal_prob_std=marginal_prob_std_fn)
-optimizer = Adam(score_model.parameters(), lr=lr)
-
-
-score_model, optimizer, data_loader = accelerator.prepare(score_model, optimizer, data_loader)
-
-
-
+from torchvision.datasets import ImageFolder
+from models.unet1 import CustomUnet
+from losses.losses import L1_loss
+import argparse
 import wandb
+from logzero import logger
+from dataset import Flare7kpp_Pair_Loader
+import yaml
 
-wandb.init(project="flarediffusion", entity="saisritejakuppa")
+
+# Define the device
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--data_dir", type=str, default="data/")
+parser.add_argument("--batch_size", type=int, default=32)
+parser.add_argument("--lr", type=float, default=0.001)
+parser.add_argument("--epochs", type=int, default=10)
+args = parser.parse_args()
 
 
-# tqdm_epoch = tqdm.notebook.trange(n_epochs)
-for epoch in range(n_epochs):
-  avg_loss = 0.
-  num_items = 0
+# Create sweep configuration
+sweep_config = {
+    "method": "random",
+    "metric": {"name": "loss", "goal": "minimize"},
+    "parameters": {
+        "batch_size": {"values": [32, 64, 128]},
+        "lr": {"values": [0.001, 0.01, 0.1]},
+    },
+}
 
-  print("epochs",epoch)
-  for x, y in data_loader:
-    loss, score = loss_fn(score_model, x, marginal_prob_std_fn)
+# Training Function
+def train_fn(model, dataloader, optimizer, criterion, device):
+    model.train()
+    running_loss = 0.0
+    # Dataloader output:
+    # {'gt': adjust_gamma_reverse(base_img),'flare': adjust_gamma_reverse(flare_img),'lq': adjust_gamma_reverse(merge_img),'mask': flare_mask,'gamma': gamma}
+    
+    for i, data in enumerate(dataloader):
+        images, labels = data['lq'], data['gt']
+        images, labels = images.to(device), labels.to(device)
+        optimizer.zero_grad()
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        running_loss += loss.item()
+    return running_loss / len(dataloader)
 
-    images = wandb.Image(score, caption="Top: Output, Bottom: Input")
-    wandb.log({"examples": images})
-    wandb.log({"loss": loss})
 
-    quit()
+def main():
+    # Load the dataset, haven't defined any transforms as of yet
+    opts = yaml.load(open("options/config.yaml", "r"), Loader=yaml.FullLoader)
 
-    optimizer.zero_grad()
-    # loss.backward() 
-    accelerator.backward(loss)   
-    optimizer.step()
-    avg_loss += loss.item() * x.shape[0]
-    num_items += x.shape[0]
-  # Print the averaged training loss so far.
-#   tqdm_epoch.set_description('Average Loss: {:5f}'.format(avg_loss / num_items))
-  # Update the checkpoint after each epoch of training.
-  if (epoch%10)==9:
-    torch.save(score_model.state_dict(), f'ckpts/ckpt{epoch+1}.pth')
+    dataloader = Flare7kpp_Pair_Loader(opts)
+    # Initialize the model
+    model = CustomUnet(3, 3).to(device)
+
+    # Define the optimizer and loss function
+    optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    criterion = L1_loss
+    
+    for epoch in range(args.epochs):
+        loss = train_fn(model, dataloader, optimizer, criterion, device)
+        logger.info(f"Epoch {epoch+1}/{args.epochs}, Loss: {loss:.4f}")
+        wandb.log({"Loss": loss, "Epoch": epoch})
+
+
+
+if __name__ == "__main__":
+    # Initialize the sweep
+    wandb.init(project="custom-unet")
+    sweep_id = wandb.sweep(sweep=sweep_config, project="my-first-sweep")
+    wandb.agent(sweep_id, function=main, count=1)
+

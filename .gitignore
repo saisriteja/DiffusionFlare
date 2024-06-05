@@ -2,3 +2,6 @@ MNIST/
 wandb/
 iitm_data/
 ckpts/
+Flare7Kpp/
+__pycache__/
+dataset/
