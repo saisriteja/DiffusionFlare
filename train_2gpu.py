@@ -15,7 +15,7 @@ from torcheval.metrics import PeakSignalNoiseRatio
 from models.uformer_cmx import Uformer
 from dataset import get_loader
 from pdb import set_trace as stx
-
+from accelerate import Accelerator
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data_dir", type=str, default="DiffusionFlare/sample_dataset/")
@@ -29,7 +29,7 @@ parser.add_argument("--learning_rate", type=float, default=0.001)
 args = parser.parse_args()
 
 
-
+accelerator = Accelerator()
 
 
 # Create sweep configuration
@@ -87,6 +87,7 @@ def train_fn(model, train_loader,val_loader, optimizer, loss_fn, device):
     num_epochs = config.epochs
 
     
+    model, optimizer, train_loader = accelerator.prepare(model, optimizer, train_loader)
 
 
 
@@ -108,7 +109,8 @@ def train_fn(model, train_loader,val_loader, optimizer, loss_fn, device):
 
             # Backpropagation
             optimizer.zero_grad()
-            loss.backward()
+            # loss.backward()
+            accelerator.backward(loss)
             optimizer.step()
 
             psnr = PeakSignalNoiseRatio()
