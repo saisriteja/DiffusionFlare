@@ -283,3 +283,42 @@ class Flare7kpp_Pair_Loader(Flare_Image_Loader):
 		if len(light_dict) !=0:
 			for key in light_dict.keys():
 				self.load_light_source(key,light_dict[key])
+
+
+class ImageDataset(data.Dataset):
+    def __init__(self, rgb_paths, depth_paths, flare_paths, ):
+        self.rgb_paths = rgb_paths
+        self.depth_paths = depth_paths
+        self.flare_paths = flare_paths
+        self.transform = transforms.Compose([transforms.Resize((256, 256)), transforms.ToTensor()])
+
+    def __len__(self):
+        return len(self.rgb_paths)
+
+    def __getitem__(self, idx):
+        rgb_image = self.load_image(self.rgb_paths[idx])
+        depth_image = self.load_image(self.depth_paths[idx], True)
+        flare_image = self.load_image(self.flare_paths[idx])
+
+        return rgb_image, depth_image, flare_image
+    
+    def load_image(self, path, single_channel = False):
+        if single_channel:
+            x = Image.open(path).convert('L')
+            x = Image.merge('RGB', (x, x, x))
+        else:
+            x = Image.open(path)
+
+        x = self.transform(x)                
+        return x
+
+
+def get_loader(phase, datatset_path, batch_size):
+    rgb_paths = glob.glob(f'{datatset_path}_{phase}/rgb/*')
+    depth_paths = glob.glob(f'{datatset_path}_{phase}/depth/*')
+    flare_paths = glob.glob(f'{datatset_path}_{phase}/flare/*')
+    print(f"Number of {phase} images: {len(flare_paths)}")
+    dataset = ImageDataset(rgb_paths, depth_paths, flare_paths)
+    dataloader = data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+    return dataloader
