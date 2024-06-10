@@ -29,49 +29,27 @@ parser.add_argument("--learning_rate", type=float, default=0.001)
 args = parser.parse_args()
 
 
-
-
-
 # Create sweep configuration
-if args.use_wandb:
-        
-    sweep_config = {
-        'method': 'random', #grid, random
-        'metric': {
-        'name': 'psnr',
-        'goal': 'maximize'   
-        },
-        'parameters': {
-            'epochs': {
-                'values': [2, 5, 10]
-            },
-            'batch_size': {
-                'values': [256, 128, 64, 32]
-            },
-            'learning_rate': {
-                'values': [1e-2, 1e-3, 1e-4, 3e-4, 3e-5, 1e-5]
-            },
-            'optimizer': {
-                'values': ['adam', 'nadam', 'sgd', 'rmsprop']
-            },
-        }
-    }
+sweep_config = {
+    "method": "random",  # grid, random
+    "metric": {"name": "val_psnr", "goal": "maximize"},
+    "parameters": {
+        "epochs": {"values": [2, 5, 10]},
+        "batch_size": {"values": [4, 6, 8, 12]},
+        "learning_rate": {"values": [1e-2, 1e-3, 1e-4, 3e-4, 3e-5, 1e-5]},
+        "optimizer": {"values": ["adam", "sgd", "rmsprop"]},
+    },
+}
 
-    config_defaults = {
-            'epochs': 5,
-            'batch_size': 32,
-            'learning_rate': 1e-3,
-            'optimizer': 'adam',
-    }
-
-    wandb.init(project="custom-unet", config=config_defaults)
-    config = wandb.config
-
-else:
-    config = args
+config_defaults = {
+        'epochs': 5,
+        'batch_size': 32,
+        'learning_rate': 1e-3,
+        'optimizer': 'adam',
+}
 
 # Training Function
-def train_fn(model, train_loader,val_loader, optimizer, loss_fn, device):
+def train_fn(model, loss_fn, device,optimizer=None):
     
     plot_dict = {}
     train_loss_list = []
@@ -81,14 +59,24 @@ def train_fn(model, train_loader,val_loader, optimizer, loss_fn, device):
     val_avg_psnr_list = []
     train_avg_psnr_list = []
 
+    wandb.init(config=config_defaults)
+    config = wandb.config
+    train_loader = get_loader('train', 'sample_dataset/Flickr24K', config.batch_size)
+    val_loader = get_loader('val', 'sample_dataset/Flickr24K', config.batch_size)
+
+    if config.optimizer=='sgd':
+        optimizer = torch.optim.SGD(model.parameters(),lr=config.learning_rate)
+    elif config.optimizer=='rmsprop':
+        optimizer = torch.optim.RMSprop(model.parameters(),lr=config.learning_rate)
+    elif config.optimizer=='adam':
+        optimizer = torch.optim.Adam(model.parameters(),lr=config.learning_rate, betas=(0.9, 0.999), eps=1e-8, weight_decay=1e-5, amsgrad=False)
+    elif config.optimizer=='nadam':
+        optimizer =torch.optim.NAdam(model.parameters(),lr=config.learning_rate, betas=(0.9, 0.999), eps=1e-8, weight_decay=1e-5)
+
     # Train the model
     model.train()
     model.to(device)
     num_epochs = config.epochs
-
-    
-
-
 
     for epoch in range(num_epochs):
         running_loss = 0 
@@ -116,7 +104,6 @@ def train_fn(model, train_loader,val_loader, optimizer, loss_fn, device):
             train_psnr_list.append(psnr.compute().item())
 
         # Print the loss
-        #print(f"Epoch: {epoch+1}/{num_epochs}, Batch: {i+1}/{len(train_loader)}, Loss: {running_loss:.4f}")
         logger.info(f"Epoch: {epoch+1}/{num_epochs}, PSNR: {sum(train_psnr_list)/len(train_psnr_list):.4f}, Loss: {running_loss:.4f}")
         train_loss_list.append(running_loss)
         train_avg_psnr_list.append(sum(train_psnr_list)/len(train_psnr_list))
@@ -147,47 +134,32 @@ def train_fn(model, train_loader,val_loader, optimizer, loss_fn, device):
                 running_val_loss += loss.item()
 
             plot_dict[epoch] = plot_list
+
             # Print the loss
             logger.info(f"Validation: Epoch: {epoch+1}/{num_epochs}, PSNR: {sum(val_psnr_list)/len(val_psnr_list):.4f}, Loss: {running_val_loss:.4f}")
             val_loss_list.append(running_val_loss)
             val_avg_psnr_list.append(sum(val_psnr_list)/len(val_psnr_list))
-            # print(f"Epoch: {epoch+1}/{num_epochs}, Validation Batch: {i+1}/{len(val_loader)}, Loss: {running_val_loss:.4f}")
+
             wandb.log({"val_loss": running_val_loss, "val_psnr": sum(val_psnr_list)/len(val_psnr_list)})
     
+    wandb.save(f"epoch_{epoch+1}.pth")
     return plot_dict, train_avg_psnr_list, val_avg_psnr_list
 
 
-
-def main():
-    
+def main():    
     # Define the device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Load the model
     input_size = 256
     arch = Uformer
-    depths=[2, 2, 2, 2, 2, 2, 2, 2, 2]
+    # depths=[2, 2, 2, 2, 2, 2, 2, 2, 2]
+    depths=[1, 1, 1, 1, 1, 1, 1, 1, 1]
     model_restoration = Uformer(img_size=input_size, embed_dim=16,depths=depths,
                     win_size=8, mlp_ratio=4., token_projection='linear', token_mlp='leff', modulator=True, shift_flag=False)
-
-    # Load the data
-    train_loader = get_loader('train', 'sample_dataset/Flickr24K', config.batch_size)
-    val_loader = get_loader('val', 'sample_dataset/Flickr24K', config.batch_size)
-    # test_loader = get_loader('test', '/content/sample_dataset/Flickr24K', config.batch_size)
-
-    # Define the optimizer and loss function
-
-    if config.optimizer=='sgd':
-        optimizer = torch.optim.SGD(model_restoration.parameters(),lr=config.learning_rate, decay=1e-5, momentum=config.momentum, nesterov=True)
-    elif config.optimizer=='rmsprop':
-        optimizer = torch.optim.RMSprop(model_restoration.parameters(),lr=config.learning_rate, decay=1e-5)
-    elif config.optimizer=='adam':
-        optimizer = torch.optim.Adam(model_restoration.parameters(),lr=config.learning_rate, betas=(0.9, 0.999), eps=1e-8, weight_decay=1e-5, amsgrad=False)
-    elif config.optimizer=='nadam':
-        optimizer =torch.optim.Nadam(model_restoration.parameters(),lr=config.learning_rate, beta_1=0.9, beta_2=0.999, clipnorm=1.0)
-
+    
     criterion = L1_loss
-    train_fn(model_restoration, train_loader,val_loader, optimizer, criterion, device)
+    train_fn(model_restoration, criterion, device)
 
     # TODO:  Create and save plots
 
@@ -198,9 +170,9 @@ if __name__ == "__main__":
     # stx()
     # Initialize the sweep
     if args.use_wandb:
-        # wandb.init(project="custom-unet", config=config_defaults)
-        sweep_id = wandb.sweep(sweep=sweep_config, project="my-first-sweep")
-        wandb.agent(sweep_id, function=main, count=1)
+        wandb.login()
+        sweep_id = wandb.sweep(sweep=sweep_config, project="Flare", entity="yasharora102")
+        wandb.agent(sweep_id, function=main, count=3)
     else:
         print("No wandb sweep initiated.")
         print(args)
