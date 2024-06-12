@@ -2,3 +2,6 @@ MNIST/
 wandb/
 iitm_data/
 ckpts/
+dataset/
+sample_dataset/
+wandb/
