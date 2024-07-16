@@ -5,3 +5,5 @@ ckpts/
 dataset/
 sample_dataset/
 wandb/
+__pycache__
+val_out.png

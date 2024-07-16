@@ -15,14 +15,20 @@ from torcheval.metrics import PeakSignalNoiseRatio
 from models.uformer_cmx import Uformer
 from dataset import get_loader
 from pdb import set_trace as stx
+from utils.utils import create_comparision_image
 
+SEED = 1
+torch.manual_seed(SEED)
+torch.cuda.manual_seed(SEED)
+torch.cuda.manual_seed_all(SEED)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data_dir", type=str, default="DiffusionFlare/sample_dataset/")
 parser.add_argument("--batch_size", type=int, default=4)
 parser.add_argument("--lr", type=float, default=0.001)
-parser.add_argument("--epochs", type=int, default=10)
-parser.add_argument("--use_wandb", type=bool, default=True)
+parser.add_argument("--epochs", type=int, default=1)
+parser.add_argument("--use_wandb", type=bool, default=False)
+# parser.add_argument("--use_wandb", type=bool, default=True)
 parser.add_argument("--optimizer", type=str, default="adam")
 parser.add_argument("--momentum", type=float, default=0.9)
 parser.add_argument("--learning_rate", type=float, default=0.001)
@@ -43,15 +49,15 @@ sweep_config = {
 }
 
 config_defaults = {
-        'epochs': 5,
-        'batch_size': 32,
+        'epochs': 2,
+        'batch_size': 8,
         'learning_rate': 1e-3,
         'optimizer': 'adam',
 }
 
 # Training Function
 def train_fn(model, loss_fn, device,optimizer=None):
-    
+
     plot_dict = {}
     train_loss_list = []
     val_loss_list =  []
@@ -59,11 +65,15 @@ def train_fn(model, loss_fn, device,optimizer=None):
     val_psnr_list = []
     val_avg_psnr_list = []
     train_avg_psnr_list = []
+    if args.use_wandb:
+        wandb.init(config=config_defaults)
+        config = wandb.config
 
-    wandb.init(config=config_defaults)
-    config = wandb.config
-    train_loader = get_loader('train', 'sample_dataset/Flickr24K', config.batch_size)
-    val_loader = get_loader('val', 'sample_dataset/Flickr24K', config.batch_size)
+    else:
+        config = args
+
+    train_loader = get_loader('train', '/mnt/data/yash/dataset/sample_dataset/Flickr24K', config.batch_size,1)
+    val_loader = get_loader('val', '/mnt/data/yash/dataset/sample_dataset/Flickr24K', config.batch_size,1)
 
     if config.optimizer=='sgd':
         optimizer = torch.optim.SGD(model.parameters(),lr=config.learning_rate)
@@ -105,12 +115,21 @@ def train_fn(model, loss_fn, device,optimizer=None):
             train_psnr_list.append(psnr.compute().item())
 
         # Print the loss
-        logger.info(f"Epoch: {epoch+1}/{num_epochs}, PSNR: {sum(train_psnr_list)/len(train_psnr_list):.4f}, Loss: {running_loss:.4f}")
+        logger.info(
+            f"Epoch: {epoch+1}/{num_epochs}, PSNR: {sum(train_psnr_list)/len(train_psnr_list):.4f}, Loss: {running_loss:.4f}"
+        )
         train_loss_list.append(running_loss)
         train_avg_psnr_list.append(sum(train_psnr_list)/len(train_psnr_list))
-        
-        wandb.log({"train_loss": running_loss, "train_psnr": sum(train_psnr_list)/len(train_psnr_list)})
-    # Evaluate the model on the validation set
+
+        if args.use_wandb:
+            wandb.log(
+                {
+                    "train_loss": running_loss,
+                    "train_psnr": sum(train_psnr_list) / len(train_psnr_list),
+                }
+            )
+
+        # Evaluate the model on the validation set
         with torch.no_grad():
             running_val_loss = 0
             plot_list = []
@@ -123,7 +142,6 @@ def train_fn(model, loss_fn, device,optimizer=None):
 
                 # Forward pass
                 output = model(flare, depth)
-                
                 plot_list.append([rgb, depth, flare, output])
 
                 psnr = PeakSignalNoiseRatio()
@@ -134,17 +152,33 @@ def train_fn(model, loss_fn, device,optimizer=None):
                 loss = loss_fn(output, rgb)
                 running_val_loss += loss.item()
 
+            # Create Val Images
+            final_image = create_comparision_image(epoch, plot_list)
             plot_dict[epoch] = plot_list
 
             # Print the loss
-            logger.info(f"Validation: Epoch: {epoch+1}/{num_epochs}, PSNR: {sum(val_psnr_list)/len(val_psnr_list):.4f}, Loss: {running_val_loss:.4f}")
+            logger.info(
+                f"Validation: Epoch: {epoch+1}/{num_epochs}, PSNR: {sum(val_psnr_list)/len(val_psnr_list):.4f}, Loss: {running_val_loss:.4f}"
+            )
             val_loss_list.append(running_val_loss)
             val_avg_psnr_list.append(sum(val_psnr_list)/len(val_psnr_list))
 
-            wandb.log({"val_loss": running_val_loss, "val_psnr": sum(val_psnr_list)/len(val_psnr_list)})
-    
-    wandb.save(f"epoch_{epoch+1}.pth")
+            if args.use_wandb:
+                wandb.log(
+                    {
+                        "val_loss": running_val_loss,
+                        "val_psnr": sum(val_psnr_list) / len(val_psnr_list),
+                        "output_image": wandb.Image(final_image),
+                    }
+                )
+            else:
+                final_image.save("val_out.png")
+
+    if args.use_wandb:
+        wandb.save(f"epoch_{epoch+1}.pth")
+
     return plot_dict, train_avg_psnr_list, val_avg_psnr_list
+
 
 
 def main():    

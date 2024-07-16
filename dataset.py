@@ -313,12 +313,12 @@ class ImageDataset(data.Dataset):
         return x
 
 
-def get_loader(phase, datatset_path, batch_size):
+def get_loader(phase, datatset_path, batch_size,num_workers):
     rgb_paths = glob.glob(f'{datatset_path}_{phase}/rgb/*')
     depth_paths = glob.glob(f'{datatset_path}_{phase}/depth/*')
     flare_paths = glob.glob(f'{datatset_path}_{phase}/flare/*')
     print(f"Number of {phase} images: {len(flare_paths)}")
     dataset = ImageDataset(rgb_paths, depth_paths, flare_paths)
-    dataloader = data.DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    dataloader = data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 
     return dataloader
