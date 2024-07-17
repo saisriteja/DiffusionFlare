@@ -13,6 +13,7 @@ import torch
 import numpy as np
 import torch
 
+from natsort import natsorted
 
 class RandomGammaCorrection(object):
 	def __init__(self, gamma = None):
@@ -297,7 +298,7 @@ class ImageDataset(data.Dataset):
 
     def __getitem__(self, idx):
         rgb_image = self.load_image(self.rgb_paths[idx])
-        depth_image = self.load_image(self.depth_paths[idx], True)
+        depth_image = self.load_image(self.depth_paths[idx], single_channel=True)
         flare_image = self.load_image(self.flare_paths[idx])
 
         return rgb_image, depth_image, flare_image
@@ -314,9 +315,11 @@ class ImageDataset(data.Dataset):
 
 
 def get_loader(phase, datatset_path, batch_size,num_workers):
-    rgb_paths = glob.glob(f'{datatset_path}_{phase}/rgb/*')
-    depth_paths = glob.glob(f'{datatset_path}_{phase}/depth/*')
-    flare_paths = glob.glob(f'{datatset_path}_{phase}/flare/*')
+
+    rgb_paths = natsorted(glob.glob(f'{datatset_path}_{phase}/rgb/*'))
+    depth_paths = natsorted(glob.glob(f'{datatset_path}_{phase}/depth/*'))
+    flare_paths = natsorted(glob.glob(f'{datatset_path}_{phase}/flare/*'))
+
     print(f"Number of {phase} images: {len(flare_paths)}")
     dataset = ImageDataset(rgb_paths, depth_paths, flare_paths)
     dataloader = data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)

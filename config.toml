@@ -1,0 +1,51 @@
+# Data configuration
+[data]
+dataset_dir = "/mnt/data/yash/dataset/sample_dataset/Flickr24K"  # Directory containing the dataset
+batch_size = 4  # Number of samples in each batch
+num_workers = 1  # Number of subprocesses to use for data loading
+shuffle = true  # Whether to shuffle the training data
+
+# Model configuration
+[model]
+type = "Uformer"  # Type of model architecture choose in [Uformer, ]
+depths = [1, 1, 1, 1, 1, 1, 1, 1, 1]  # Depth of each Uformer block
+input_size = 256  
+embed_dim = 16  
+win_size = 8  
+loss = "L1"  # Type of loss function used
+
+# Optimizer configuration
+[optimizer]
+# Choose from ["sgd", "rmsprop", "adam", "nadam"]
+type = "adam"  
+learning_rate = 0.001 
+
+# Training configuration
+[training]
+num_epochs = 1  
+
+# Whether to use Weights and Biases (wandb)
+[use_wandb]
+value = false
+num_sweeps=3
+
+# Default configuration for Weights and Biases (wandb)
+[wandb_config_defaults]
+epochs = 2  # Default number of epochs for wandb runs
+batch_size = 8  # Default batch size for wandb runs
+learning_rate = 1e-3  # Default learning rate for wandb runs
+optimizer = "adam"  # Default optimizer for wandb runs
+
+# Sweep Configuration
+[sweep_config]
+method = "random"  # Method for hyperparameter search: grid, random
+
+    [sweep_config.metric]
+    name = "val_psnr"  # Metric to optimize during hyperparameter search
+    goal = "maximize"  # Goal of the metric: maximize or minimize
+
+    [sweep_config.parameters]
+    epochs = {values = [2, 5, 10]}  # Possible values for the number of epochs
+    batch_size = {values = [4, 6, 8, 12]}  # Possible values for the batch size
+    learning_rate = {values = [0.01, 0.001, 0.0001, 0.0003, 3e-05, 1e-05]}  # Possible values for the learning rate
+    optimizer = {values = ["adam", "sgd", "rmsprop"]}  # Possible values for the optimizer
