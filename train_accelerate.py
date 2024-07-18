@@ -20,20 +20,15 @@ import toml
 from accelerate import Accelerator
 import os
 from accelerate import DistributedDataParallelKwargs
+from accelerate.utils import set_seed
 
 # Initialize the accelerator
-
-
 ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
 accelerator = Accelerator(project_dir=".",kwargs_handlers=[ddp_kwargs])
-
-# accelerator = Accelerator(kwargs_handlers=DistributedDataParallelKwargs(find_unused_parameters=True))
 os.makedirs("checkpoints", exist_ok=True)
+
 # Set the random seed
-SEED = 1
-torch.manual_seed(SEED)
-torch.cuda.manual_seed(SEED)
-torch.cuda.manual_seed_all(SEED)
+set_seed(42)
 
 # Path to your TOML config file
 config_file = 'config.toml'
@@ -42,14 +37,11 @@ config_file = 'config.toml'
 with open(config_file, 'r') as f:
     toml_config = toml.load(f)
 
-# print(toml_config)
-
 parser = argparse.ArgumentParser()
 parser.add_argument("--data_dir", type=str, default="DiffusionFlare/sample_dataset/")
 parser.add_argument("--batch_size", type=int, default=4)
 parser.add_argument("--lr", type=float, default=0.001)
 parser.add_argument("--epochs", type=int, default=1)
-# parser.add_argument("--use_wandb", type=bool, default=False)
 parser.add_argument("--use_wandb", type=bool, default=True)
 parser.add_argument("--optimizer", type=str, default="adam")
 parser.add_argument("--momentum", type=float, default=0.9)
@@ -109,7 +101,6 @@ def train_fn(model, loss_fn, device,optimizer=None):
     # Train the model
     model.to(device)
 
-      # TODO:  Add scheduler
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.99)
 
     model, optimizer, train_loader, val_loader = accelerator.prepare(
@@ -120,6 +111,7 @@ def train_fn(model, loss_fn, device,optimizer=None):
 
     # Resume training
     checkpoint_dir = "checkpoints"
+
     # scan directory for checkpoint files
     checkpoint_folders = os.listdir(checkpoint_dir)
     checkpoint_folders_with_path = [os.path.join(checkpoint_dir, folder) for folder in checkpoint_folders]
@@ -132,13 +124,14 @@ def train_fn(model, loss_fn, device,optimizer=None):
         accelerator.load_state(latest_checkpoint)
 
     # chekpointing path will be like checkpoints/epoch_{epoch}_step_{step}/*
-    # get step and epoch from the checkpoint path\
-        start_epoch = int(latest_checkpoint.split("/")[1].split("_")[1])
-        resume_step = int(latest_checkpoint.split("/")[1].split("_")[-1])
-
+    # get step and epoch from the checkpoint path
+        # start_epoch = int(latest_checkpoint.split("/")[1].split("_")[1])
+        iters_done = int(latest_checkpoint.split("/")[1].split("_")[-1])
+        start_epoch = iters_done // len(train_loader)
+        resume_step = iters_done % len(train_loader)
 
         logger.info(
-            f"Resuming training from epoch {start_epoch} and step {resume_step}"
+            f"Resuming training from epoch {start_epoch}, iter {iters_done} and skipping batches {resume_step}"
         )
 
     else:
@@ -152,17 +145,16 @@ def train_fn(model, loss_fn, device,optimizer=None):
         running_loss = 0
         if args.resume and epoch == start_epoch and resume_step is not None:
             active_dataloader = accelerator.skip_first_batches(train_loader, resume_step)
-            overall_step += resume_step
+
+            overall_step += iters_done
 
         else:
             active_dataloader = train_loader
+        
+        # for i in active_dataloader:
+        #     print(i)
 
         for i, (rgb, depth, flare) in enumerate(active_dataloader):
-            
-            # Move the data to GPU
-            # rgb = rgb.to(device)
-            # depth = depth.to(device)
-            # flare = flare.to(device)
 
             optimizer.zero_grad()
             
@@ -174,7 +166,6 @@ def train_fn(model, loss_fn, device,optimizer=None):
             running_loss += loss.item()
 
             # Backpropagation
-            # loss.backward()
             accelerator.backward(loss)
             optimizer.step()
 
@@ -185,13 +176,12 @@ def train_fn(model, loss_fn, device,optimizer=None):
             overall_step += 1
 
             if overall_step % args.checkpointing_steps == 0:
-                save_dir = f"checkpoints/epoch_{epoch}_step_{overall_step}"
+                save_dir = f"checkpoints/epoch_{epoch}_iters_{overall_step}"
                 accelerator.wait_for_everyone()
                 accelerator.save_state(save_dir)
                 logger.info(
-                    f"Checkpoint saved at epoch {epoch} and step {overall_step}"
+                    f"Checkpoint saved at epoch {epoch} and iter {overall_step}"
                 )
-
 
         # Print the loss
         logger.info(
@@ -208,13 +198,15 @@ def train_fn(model, loss_fn, device,optimizer=None):
                 }
             )
 
+    # TODO: Add validation loop and wandb logging (images) 
+    
     return plot_dict, train_avg_psnr_list, val_avg_psnr_list
 
 
 def main():    
     # Define the device
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     device = accelerator.device
+
     # Get Model
     if toml_config["model"]["type"] == "Uformer":
         model_restoration = Uformer(
@@ -233,8 +225,6 @@ def main():
     train_fn(model_restoration, criterion, device)
 
 if __name__ == "__main__":
-    
-    # print(args)
     # Initialize the sweep
     if toml_config["use_wandb"]["value"]:
         wandb.login()
