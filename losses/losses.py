@@ -3,7 +3,7 @@ import torch.nn as nn
 from torchvision.models import vgg19
 import torchvision.models.vgg as vgg
 import torch.nn.functional as F
-from loss_ssim import ssim
+from .loss_ssim import ssim
 
 def get_loss(loss):
     if loss == "L1":
