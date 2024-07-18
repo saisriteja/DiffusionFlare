@@ -19,9 +19,15 @@ from utils.utils import create_comparision_image
 import toml
 from accelerate import Accelerator
 import os
+from accelerate import DistributedDataParallelKwargs
 
 # Initialize the accelerator
-accelerator = Accelerator(project_dir=".")
+
+
+ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+accelerator = Accelerator(project_dir=".",kwargs_handlers=[ddp_kwargs])
+
+# accelerator = Accelerator(kwargs_handlers=DistributedDataParallelKwargs(find_unused_parameters=True))
 os.makedirs("checkpoints", exist_ok=True)
 # Set the random seed
 SEED = 1
@@ -36,7 +42,7 @@ config_file = 'config.toml'
 with open(config_file, 'r') as f:
     toml_config = toml.load(f)
 
-print(toml_config)
+# print(toml_config)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data_dir", type=str, default="DiffusionFlare/sample_dataset/")
@@ -50,7 +56,7 @@ parser.add_argument("--momentum", type=float, default=0.9)
 parser.add_argument("--learning_rate", type=float, default=0.001)
 parser.add_argument("--num_sweeps", type=int, default=3)
 parser.add_argument("--resume", type=bool, default=True)
-parser.add_argument("--checkpointing_steps", type=int, default=10)
+parser.add_argument("--checkpointing_steps", type=int, default=100)
 args = parser.parse_args()
 
 
@@ -103,31 +109,7 @@ def train_fn(model, loss_fn, device,optimizer=None):
     # Train the model
     model.to(device)
 
-    # Resume training
-    checkpoint_dir = "checkpoints"
-    # scan directory for checkpoint files
-    checkpoint_files = os.listdir(checkpoint_dir)
-
-    # if there are checkpoint files, load the latest one
-    if checkpoint_files:
-        latest_checkpoint = max(checkpoint_files, key=os.path.getctime)
-        checkpoint_path = os.path.join(checkpoint_dir, latest_checkpoint)
-        accelerator.load_state(checkpoint_path)
-
-    # chekpointing path will be like checkpoints/epoch_{epoch}_step_{step}/*
-    # get step and epoch from the checkpoint path\
-        start_epoch = int(latest_checkpoint.split("/")[1].split("_")[1])
-        resume_step = int(latest_checkpoint.split("/")[1].split("_")[-1])
-
-    else:
-        start_epoch = 0
-        overall_step = 0
-        resume_step = None
-
-
-
-
-    # TODO:  Add scheduler
+      # TODO:  Add scheduler
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.99)
 
     model, optimizer, train_loader, val_loader = accelerator.prepare(
@@ -136,6 +118,34 @@ def train_fn(model, loss_fn, device,optimizer=None):
 
     accelerator.register_for_checkpointing(model, optimizer, scheduler)
 
+    # Resume training
+    checkpoint_dir = "checkpoints"
+    # scan directory for checkpoint files
+    checkpoint_folders = os.listdir(checkpoint_dir)
+    checkpoint_folders_with_path = [os.path.join(checkpoint_dir, folder) for folder in checkpoint_folders]
+    print(checkpoint_folders_with_path)
+    # stx()
+
+    # if there are checkpoint files, load the latest one
+    if checkpoint_folders_with_path:
+        latest_checkpoint = max(checkpoint_folders_with_path, key=os.path.getctime)
+        accelerator.load_state(latest_checkpoint)
+
+    # chekpointing path will be like checkpoints/epoch_{epoch}_step_{step}/*
+    # get step and epoch from the checkpoint path\
+        start_epoch = int(latest_checkpoint.split("/")[1].split("_")[1])
+        resume_step = int(latest_checkpoint.split("/")[1].split("_")[-1])
+
+
+        logger.info(
+            f"Resuming training from epoch {start_epoch} and step {resume_step}"
+        )
+
+    else:
+        start_epoch = 0
+        resume_step = None
+  
+    overall_step = 0
 
     for epoch in range(start_epoch,num_epochs):
         model.train()
@@ -178,6 +188,9 @@ def train_fn(model, loss_fn, device,optimizer=None):
                 save_dir = f"checkpoints/epoch_{epoch}_step_{overall_step}"
                 accelerator.wait_for_everyone()
                 accelerator.save_state(save_dir)
+                logger.info(
+                    f"Checkpoint saved at epoch {epoch} and step {overall_step}"
+                )
 
 
         # Print the loss
@@ -221,7 +234,7 @@ def main():
 
 if __name__ == "__main__":
     
-    print(args)
+    # print(args)
     # Initialize the sweep
     if toml_config["use_wandb"]["value"]:
         wandb.login()
@@ -229,5 +242,5 @@ if __name__ == "__main__":
         wandb.agent(sweep_id, function=main, count=toml_config["use_wandb"]["num_sweeps"])
     else:
         print("No wandb sweep initiated.")
-        print(args)
+        # print(args)
         main()

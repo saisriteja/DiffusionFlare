@@ -56,3 +56,4 @@ urllib3==2.2.1
 wandb==0.17.0
 wheel==0.43.0
 yacs==0.1.8
+natsort
