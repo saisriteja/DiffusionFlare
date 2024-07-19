@@ -316,11 +316,14 @@ class ImageDataset(data.Dataset):
 
 def get_loader(phase, datatset_path, batch_size,num_workers):
 
-    rgb_paths = natsorted(glob.glob(f'{datatset_path}_{phase}/rgb/*'))
-    depth_paths = natsorted(glob.glob(f'{datatset_path}_{phase}/depth/*'))
-    flare_paths = natsorted(glob.glob(f'{datatset_path}_{phase}/flare/*'))
+    rgb_paths = natsorted(glob.glob(f'{datatset_path}/{phase}/rgb/*'))
+    depth_paths = natsorted(glob.glob(f'{datatset_path}/{phase}/depth/*'))
+    flare_paths = natsorted(glob.glob(f'{datatset_path}/{phase}/merged/*'))
 
     print(f"Number of {phase} images: {len(flare_paths)}")
+    
+    assert len(rgb_paths) == len(depth_paths) == len(flare_paths), "Number of images in each folder should be same"
+
     dataset = ImageDataset(rgb_paths, depth_paths, flare_paths)
     dataloader = data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 

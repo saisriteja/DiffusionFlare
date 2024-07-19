@@ -1,18 +1,24 @@
 # Data configuration
 [data]
-dataset_dir = "sample_dataset/Flickr24K"  # Directory containing the dataset
+dataset_dir = "/media/cilab/data1/yash/dataset_creation/depth_dataset_without_aug"  # Directory containing the dataset
 batch_size = 4  # Number of samples in each batch
 num_workers = 1  # Number of subprocesses to use for data loading
 shuffle = true  # Whether to shuffle the training data
+val_freq = 100
 
 # Model configuration
 [model]
-type = "Uformer"  # Type of model architecture choose in [Uformer, ]
+type = "SwinFusion"  # Type of model architecture choose in [Uformer, SwinFusion]
 depths = [1, 1, 1, 1, 1, 1, 1, 1, 1]  # Depth of each Uformer block
 input_size = 256  
 embed_dim = 16  
 win_size = 8  
 loss = "L1"  # Type of loss function used
+swin_upscale = 2
+swin_depths= [6,6,6,6]
+swin_embed_dim = 60
+swin_num_heads = [6,6,6,6]
+
 
 # Optimizer configuration
 [optimizer]
@@ -24,7 +30,7 @@ learning_rate = 0.001
 [training]
 num_epochs = 25
 resume=true
-checkpointing_steps = 100 
+checkpointing_steps = 500 
 
 # Whether to use Weights and Biases (wandb)
 [use_wandb]
