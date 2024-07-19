@@ -37,21 +37,6 @@ config_file = 'config.toml'
 with open(config_file, 'r') as f:
     toml_config = toml.load(f)
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--data_dir", type=str, default="DiffusionFlare/sample_dataset/")
-parser.add_argument("--batch_size", type=int, default=4)
-parser.add_argument("--lr", type=float, default=0.001)
-parser.add_argument("--epochs", type=int, default=1)
-parser.add_argument("--use_wandb", type=bool, default=True)
-parser.add_argument("--optimizer", type=str, default="adam")
-parser.add_argument("--momentum", type=float, default=0.9)
-parser.add_argument("--learning_rate", type=float, default=0.001)
-parser.add_argument("--num_sweeps", type=int, default=3)
-parser.add_argument("--resume", type=bool, default=True)
-parser.add_argument("--checkpointing_steps", type=int, default=100)
-args = parser.parse_args()
-
-
 # Create sweep configuration
 sweep_config = toml_config["sweep_config"]
 
@@ -115,8 +100,6 @@ def train_fn(model, loss_fn, device,optimizer=None):
     # scan directory for checkpoint files
     checkpoint_folders = os.listdir(checkpoint_dir)
     checkpoint_folders_with_path = [os.path.join(checkpoint_dir, folder) for folder in checkpoint_folders]
-    print(checkpoint_folders_with_path)
-    # stx()
 
     # if there are checkpoint files, load the latest one
     if checkpoint_folders_with_path:
@@ -129,30 +112,30 @@ def train_fn(model, loss_fn, device,optimizer=None):
         iters_done = int(latest_checkpoint.split("/")[1].split("_")[-1])
         start_epoch = iters_done // len(train_loader)
         resume_step = iters_done % len(train_loader)
+        if accelerator.is_local_main_process:
 
-        logger.info(
-            f"Resuming training from epoch {start_epoch}, iter {iters_done} and skipping batches {resume_step}"
-        )
+            logger.info(
+                f"Resuming training from epoch {start_epoch}, iter {iters_done} and skipping batches {resume_step}"
+            )
 
     else:
         start_epoch = 0
         resume_step = None
   
     overall_step = 0
+    
+    psnr = PeakSignalNoiseRatio()
 
     for epoch in range(start_epoch,num_epochs):
         model.train()
         running_loss = 0
-        if args.resume and epoch == start_epoch and resume_step is not None:
+        if toml_config["training"]["resume"] and epoch == start_epoch and resume_step is not None:
             active_dataloader = accelerator.skip_first_batches(train_loader, resume_step)
 
             overall_step += iters_done
 
         else:
             active_dataloader = train_loader
-        
-        # for i in active_dataloader:
-        #     print(i)
 
         for i, (rgb, depth, flare) in enumerate(active_dataloader):
 
@@ -169,25 +152,26 @@ def train_fn(model, loss_fn, device,optimizer=None):
             accelerator.backward(loss)
             optimizer.step()
 
-            psnr = PeakSignalNoiseRatio()
             psnr.update(rgb, output)
             train_psnr_list.append(psnr.compute().item())
 
             overall_step += 1
 
-            if overall_step % args.checkpointing_steps == 0:
+            if overall_step % toml_config["training"]["checkpointing_steps"] == 0:
                 save_dir = f"checkpoints/epoch_{epoch}_iters_{overall_step}"
                 accelerator.wait_for_everyone()
                 accelerator.save_state(save_dir)
-                logger.info(
-                    f"Checkpoint saved at epoch {epoch} and iter {overall_step}"
-                )
+                if accelerator.is_local_main_process:
+                    logger.info(
+                        f"Checkpoint saved at epoch {epoch} and iter {overall_step}"
+                    )
 
         # Print the loss
-        logger.info(
-            f"Epoch: {epoch+1}/{num_epochs}, PSNR: {sum(train_psnr_list)/len(train_psnr_list):.4f}, Loss: {running_loss:.4f}"
-        )
-        train_loss_list.append(running_loss)
+        if accelerator.is_local_main_process:
+            logger.info(
+                f"Epoch: {epoch+1}/{num_epochs}, PSNR: {sum(train_psnr_list)/len(train_psnr_list):.4f}, Loss: {running_loss:.4f}"
+            )
+        train_loss_list.append(running_loss) # For plotting only
         train_avg_psnr_list.append(sum(train_psnr_list)/len(train_psnr_list))
 
         if use_wandb:
