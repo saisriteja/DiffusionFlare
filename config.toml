@@ -22,7 +22,9 @@ learning_rate = 0.001
 
 # Training configuration
 [training]
-num_epochs = 25  
+num_epochs = 25
+resume=true
+checkpointing_steps = 100 
 
 # Whether to use Weights and Biases (wandb)
 [use_wandb]
