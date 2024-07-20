@@ -15,7 +15,7 @@ def create_comparision_image(epoch, plot_list):
     width, height = pil_images[0].size
     total_w = width * 4
     total_h = height + 50
-    main_title_text = f"Val_out_at_{epoch}"
+    main_title_text = f"Val_out_at_{epoch}_{ind}"
 
     final_image = Image.new("RGB", (total_w, total_h), "white")
     draw = ImageDraw.Draw(final_image)

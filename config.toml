@@ -1,10 +1,12 @@
 # Data configuration
 [data]
-dataset_dir = "/media/cilab/data1/yash/dataset_creation/depth_dataset_without_aug"  # Directory containing the dataset
-batch_size = 4  # Number of samples in each batch
-num_workers = 1  # Number of subprocesses to use for data loading
+dataset_dir = "/data/yash/depth_dataset_without_aug"  # Directory containing the dataset
+val_out_dir = "val_out"  # Directory to save validation outputs
+# dataset_dir = '/data/yash/sample_dataset/sample_dataset' # dummy dataset
+batch_size = 2  # Number of samples in each batch
+num_workers = 8  # Number of subprocesses to use for data loading
 shuffle = true  # Whether to shuffle the training data
-val_freq = 100
+val_freq = 1000
 
 # Model configuration
 [model]
@@ -18,6 +20,7 @@ swin_upscale = 2
 swin_depths= [6,6,6,6]
 swin_embed_dim = 60
 swin_num_heads = [6,6,6,6]
+swin_patch_size = 4
 
 
 # Optimizer configuration
@@ -30,7 +33,7 @@ learning_rate = 0.001
 [training]
 num_epochs = 25
 resume=true
-checkpointing_steps = 500 
+checkpointing_steps = 1000 
 
 # Whether to use Weights and Biases (wandb)
 [use_wandb]
@@ -40,7 +43,7 @@ num_sweeps=3
 # Default configuration for Weights and Biases (wandb)
 [wandb_config_defaults]
 epochs = 2  # Default number of epochs for wandb runs
-batch_size = 8  # Default batch size for wandb runs
+batch_size = 2  # Default batch size for wandb runs
 learning_rate = 1e-3  # Default learning rate for wandb runs
 optimizer = "adam"  # Default optimizer for wandb runs
 

@@ -11,6 +11,7 @@ import wandb
 from logzero import logger
 from dataset import Flare7kpp_Pair_Loader
 import yaml
+from tqdm import tqdm
 from torcheval.metrics import PeakSignalNoiseRatio
 from models.uformer_cmx import Uformer
 from dataset import get_loader
@@ -22,7 +23,7 @@ import os
 from accelerate import DistributedDataParallelKwargs
 from accelerate.utils import set_seed
 from models.swin_fusion.swin_fusion_model import SwinFusion
-
+from utils.val import val_script
 # Initialize the accelerator
 ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
 accelerator = Accelerator(project_dir=".",kwargs_handlers=[ddp_kwargs])
@@ -138,7 +139,7 @@ def train_fn(model, loss_fn, device,optimizer=None):
         else:
             active_dataloader = train_loader
 
-        for i, (rgb, depth, flare) in enumerate(active_dataloader):
+        for i, (rgb, depth, flare) in tqdm(enumerate(active_dataloader), total=len(active_dataloader)):
 
             optimizer.zero_grad()
             
@@ -159,9 +160,13 @@ def train_fn(model, loss_fn, device,optimizer=None):
             overall_step += 1
 
             if overall_step % toml_config["data"]["val_freq"] == 0:
+                # accelerator.wait_for_everyone()
+                if accelerator.is_local_main_process:
+                    logger.info(f"Validation started with {overall_step} iterations")
+                val_script(accelerator,model, loss_fn, plot_dict, val_loss_list, val_psnr_list, val_avg_psnr_list, use_wandb, num_epochs, val_loader, overall_step, epoch, toml_config["data"]["val_out_dir"])
+                model.train()
                 accelerator.wait_for_everyone()
-                val_script(model, loss_fn, plot_dict, val_loss_list, val_psnr_list, val_avg_psnr_list, use_wandb, num_epochs, val_loader, overall_step, epoch)
-    
+
             if overall_step % toml_config["training"]["checkpointing_steps"] == 0:
                 save_dir = f"checkpoints/epoch_{epoch}_iters_{overall_step}"
                 accelerator.wait_for_everyone()
@@ -191,44 +196,7 @@ def train_fn(model, loss_fn, device,optimizer=None):
         
     return plot_dict, train_avg_psnr_list, val_avg_psnr_list
 
-def val_script(model, loss_fn, plot_dict, val_loss_list, val_psnr_list, val_avg_psnr_list, use_wandb, num_epochs, val_loader, overall_step, epoch):
-    with torch.no_grad():
-            running_val_loss = 0
-            plot_list = []
-            for i, (rgb, depth, flare) in enumerate(val_loader):
-                        # Forward pass
-                output = model(flare, depth)
-                plot_list.append([rgb, depth, flare, output])
 
-                psnr = PeakSignalNoiseRatio()
-                psnr.update(rgb, output)
-                val_psnr_list.append(psnr.compute().item())
-
-                        # Calculate the loss
-                loss = loss_fn(output, rgb)
-                running_val_loss += loss.item()
-
-                    # Create Val Images
-            final_image = create_comparision_image(epoch, plot_list)
-            plot_dict[epoch] = plot_list
-
-                    # Print the loss
-            logger.info(
-                        f"Validation: Epoch: {epoch+1}/{num_epochs}, Iters:{overall_step}, PSNR: {sum(val_psnr_list)/len(val_psnr_list):.4f}, Loss: {running_val_loss:.4f}"
-                    )
-            val_loss_list.append(running_val_loss)
-            val_avg_psnr_list.append(sum(val_psnr_list)/len(val_psnr_list))
-
-            if use_wandb:
-                wandb.log(
-                            {
-                                "val_loss": running_val_loss,
-                                "val_psnr": sum(val_psnr_list) / len(val_psnr_list),
-                                "output_image": wandb.Image(final_image),
-                            }
-                        )
-            else:
-                final_image.save(f"val_out_{overall_step}.png")
 
 
 def main():    
@@ -258,6 +226,7 @@ def main():
         width = (720 // upscale // window_size + 1) * window_size
         model_restoration = SwinFusion(upscale=upscale, 
                         img_size=(height, width),
+                        # patch_size= toml_config["model"]["swin_patch_size"],
                         in_chans = 3,
                             window_size=window_size, img_range=1., 
                             depths=toml_config["model"]["swin_depths"],
@@ -265,7 +234,7 @@ def main():
                             num_heads=toml_config["model"]["swin_num_heads"], 
                             mlp_ratio=2, 
                             upsampler='pixelshuffledirect')
-        print(model_restoration)
+        # print(model_restoration)
         print(height, width, model_restoration.flops() / 1e9)
 
     criterion = get_loss(toml_config["model"]["loss"])
