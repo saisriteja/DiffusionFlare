@@ -1339,7 +1339,7 @@ class SwinFusion(nn.Module):
 
     def forward_features_Ex_B(self, x):    
 
-        logger.info('The shape of x in feature of B is {}'.format(x.shape))
+        # logger.info('The shape of x in feature of B is {}'.format(x.shape))
         x = self.lrelu(self.conv_first1_A(x))
         x = self.lrelu(self.conv_first2_A(x))      
         x_size = (x.shape[2], x.shape[3])
@@ -1404,9 +1404,9 @@ class SwinFusion(nn.Module):
         x = A
         y = B
 
-        logger.info('The shape of x in forward is {}'.format(x.shape))
+        # logger.info('The shape of x in forward is {}'.format(x.shape))
 
-        logger.info('The shape of y in forward is {}'.format(y.shape))  
+        # logger.info('The shape of y in forward is {}'.format(y.shape))  
 
         H, W = x.shape[2:]
         x = self.check_image_size(x)
@@ -1418,10 +1418,6 @@ class SwinFusion(nn.Module):
 
         x = (x - self.mean_A) * self.img_range
         y = (y - self.mean_B) * self.img_range
-
-
-
-
 
         # Feedforward
         x = self.forward_features_Ex_A(x)
@@ -1450,24 +1446,24 @@ class SwinFusion(nn.Module):
         return flops
 
 
-if __name__ == '__main__':
-    upscale = 2
-    window_size = 8
-    height = (1024 // upscale // window_size + 1) * window_size
-    width = (720 // upscale // window_size + 1) * window_size
-    model = SwinFusion(upscale=2, 
-                       img_size=(height, width),
-                       in_chans = 3,
-                        window_size=window_size, img_range=1., 
-                        depths=[6, 6, 6, 6],
-                        embed_dim=60, 
-                        num_heads=[6, 6, 6, 6], 
-                        mlp_ratio=2, 
-                        upsampler='pixelshuffledirect')
-    print(model)
-    print(height, width, model.flops() / 1e9)
+# if __name__ == '__main__':
+#     upscale = 2
+#     window_size = 8
+#     height = (1024 // upscale // window_size + 1) * window_size
+#     width = (720 // upscale // window_size + 1) * window_size
+#     model = SwinFusion(upscale=2, 
+#                        img_size=(height, width),
+#                        in_chans = 3,
+#                         window_size=window_size, img_range=1., 
+#                         depths=[6, 6, 6, 6],
+#                         embed_dim=60, 
+#                         num_heads=[6, 6, 6, 6], 
+#                         mlp_ratio=2, 
+#                         upsampler='pixelshuffledirect')
+#     print(model)
+#     print(height, width, model.flops() / 1e9)
 
-    x = torch.randn((1, 3, height, width))
-    depth = torch.randn((1, 3, height, width))
-    x = model(depth, x )
-    print(x.shape)
+#     x = torch.randn((1, 3, height, width))
+#     depth = torch.randn((1, 3, height, width))
+#     x = model(depth, x )
+#     print(x.shape)
