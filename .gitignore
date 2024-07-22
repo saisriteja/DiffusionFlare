@@ -9,3 +9,8 @@ __pycache__
 val_out.png
 checkpoints/
 val_out/
+logs/
+train_loss.png
+models/Emma/Ai.pth
+models/Emma/Av.pth
+old_checkpoints/

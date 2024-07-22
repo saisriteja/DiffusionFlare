@@ -291,28 +291,49 @@ class ImageDataset(data.Dataset):
         self.rgb_paths = rgb_paths
         self.depth_paths = depth_paths
         self.flare_paths = flare_paths
-        self.transform = transforms.Compose([transforms.Resize((256, 256)), transforms.ToTensor()])
+        self.transform = transforms.Compose(
+            [transforms.Resize((256, 256)), transforms.ToTensor()]
+        )
 
     def __len__(self):
         return len(self.rgb_paths)
 
     def __getitem__(self, idx):
-        rgb_image = self.load_image(self.rgb_paths[idx])
-        depth_image = self.load_image(self.depth_paths[idx], single_channel=True)
-        flare_image = self.load_image(self.flare_paths[idx])
+        mode = random.randint(0, 7)
+        rgb_image = self.load_image(self.rgb_paths[idx],mode=mode)
+        depth_image = self.load_image(self.depth_paths[idx], single_channel=True,mode=mode)
+        flare_image = self.load_image(self.flare_paths[idx],mode=mode)
 
         return rgb_image, depth_image, flare_image
-    
-    def load_image(self, path, single_channel = False):
+
+    def load_image(self, path, single_channel = False, mode = 0):
         if single_channel:
             x = Image.open(path).convert('L')
             x = Image.merge('RGB', (x, x, x))
         else:
             x = Image.open(path)
-
-        x = self.transform(x)                
+        x = self.transform(x)
+        x = augmentations(x, mode)                
         return x
 
+def augmentations(img, mode):
+	# modes = 0 - 7
+	if mode == 0:
+		return img
+	elif mode == 1:
+		return TF.hflip(img)
+	elif mode == 2:
+		return TF.vflip(img)
+	elif mode == 3:
+		return TF.rotate(img, 90)
+	elif mode == 4:
+		return TF.rotate(img, 180)
+	elif mode == 5:
+		return TF.rotate(img, 270)
+	elif mode == 6:
+		return TF.hflip(TF.rotate(img, 90))
+	elif mode == 7:
+		return TF.hflip(TF.rotate(img, 270))
 
 def get_loader(phase, datatset_path, batch_size,num_workers):
 

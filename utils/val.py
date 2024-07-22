@@ -5,7 +5,9 @@ from utils.utils import create_comparision_image
 from logzero import logger
 import wandb
 import os
-def val_script(accelerator,model, loss_fn, plot_dict, val_loss_list, val_psnr_list, val_avg_psnr_list, use_wandb, num_epochs, val_loader, overall_step, epoch, val_out_dir):
+psnr = PeakSignalNoiseRatio()
+
+def val_script(accelerator,model, loss_fn, plot_dict, val_loss_list, val_psnr_list, val_avg_psnr_list, use_wandb, num_epochs, val_loader, overall_step, epoch, val_out_dir,loss_type):
     
     os.makedirs(val_out_dir, exist_ok=True)
     
@@ -29,12 +31,20 @@ def val_script(accelerator,model, loss_fn, plot_dict, val_loss_list, val_psnr_li
             output = model(flare, depth)
             plot_list.append([rgb, depth, flare, output])
 
-            psnr = PeakSignalNoiseRatio()
             psnr.update(rgb, output)
             val_psnr_list.append(psnr.compute().item())
 
                     # Calculate the loss
-            loss = loss_fn(output, rgb)
+            # loss = loss_fn(output, rgb)
+            if loss_type == "Fusionloss_Swin":
+                # print("Using Fusion Loss")
+                # print(loss_fn)
+                loss = loss_fn(flare, depth, output, rgb)
+                loss = loss[0]
+
+            else:
+                loss = loss_fn(output, rgb)
+
             running_val_loss += loss.item()
             val_loss.append(loss.item())
             val_pbar.update(1)

@@ -10,12 +10,12 @@ val_freq = 1000
 
 # Model configuration
 [model]
-type = "SwinFusion"  # Type of model architecture choose in [Uformer, SwinFusion]
+type = "SwinFusion"  # Type of model architecture choose in [Uformer, SwinFusion, EMMA]
 depths = [1, 1, 1, 1, 1, 1, 1, 1, 1]  # Depth of each Uformer block
 input_size = 256  
 embed_dim = 16  
 win_size = 8  
-loss = "L1"  # Type of loss function used
+loss = "EMMA_fusion_loss"  # Type of loss function used [L1, Fusionloss_Swin, EMMA_fusion_loss] 
 swin_upscale = 2
 swin_depths= [6,6,6,6]
 swin_embed_dim = 60
@@ -29,11 +29,22 @@ swin_patch_size = 4
 type = "adam"  
 learning_rate = 0.001 
 
+# Split 300k iterations into two cycles. 
+# 1st cycle: fixed 3e-4 LR for 92k iters. 
+# 2nd cycle: cosine annealing (3e-4 to 1e-6) for 208k iters.
+[scheduler]
+type = "CosineAnnealingRestartCyclicLR"  # TODO: Will add support for more later
+    [scheduler.params]
+    periods = [92000, 208000]  # Periods for the learning rate scheduler
+    restart_weights = [1, 1]  # Restart weights for the learning rate scheduler
+    eta_mins = [0.0003, 0.000001]  # Minimum learning rates for the learning rate scheduler
+
 # Training configuration
 [training]
-num_epochs = 25
+num_epochs = 50
 resume=true
-checkpointing_steps = 1000 
+checkpointing_steps = 10000 
+plot_steps = 10000
 
 # Whether to use Weights and Biases (wandb)
 [use_wandb]

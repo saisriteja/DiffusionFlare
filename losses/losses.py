@@ -4,10 +4,16 @@ from torchvision.models import vgg19
 import torchvision.models.vgg as vgg
 import torch.nn.functional as F
 from .loss_ssim import ssim
+from .loss_gt import fusion_loss_gt
+import kornia
 
 def get_loss(loss):
     if loss == "L1":
         return L1_loss
+    elif loss == "Fusionloss_Swin":
+        return fusion_loss_gt()
+    elif loss == "EMMA_fusion_loss":
+        return Emma_fusion_loss()
     else:
         return NotImplementedError
 
@@ -204,5 +210,17 @@ class fusion_loss_vif(nn.Module):
         loss_SSIM = 10 * (1 - self.L_SSIM(image_A, image_B, image_fused))
         fusion_loss = loss_l1 + loss_gradient + loss_SSIM
         return fusion_loss, loss_gradient, loss_l1, loss_SSIM
-    
 
+# Taken from [MMIF-EMMA] (https://github.com/Zhaozixiang1228/MMIF-EMMA/blob/64141ce51effe31217a0d986ee7ec4baead0bb0a/utils.py#L31) 
+class Emma_fusion_loss(nn.Module):
+    def __init__(self,coeff_int=1,coeff_grad=1):
+        super(Emma_fusion_loss, self).__init__()
+        self.coeff_int=coeff_int
+        self.coeff_grad=coeff_grad
+
+    def forward(self,pre,target):
+        loss_int=F.l1_loss(pre,target)
+        loss_grad=F.l1_loss(kornia.filters.SpatialGradient()(pre),kornia.filters.SpatialGradient()(target))
+        
+        loss_total=self.coeff_int*loss_int+self.coeff_grad*loss_grad
+        return loss_total
