@@ -75,6 +75,6 @@ method = "random"  # Method for hyperparameter search: grid, random
 
     [sweep_config.parameters]
     epochs = {values = [2, 5, 10]}  # Possible values for the number of epochs
-    batch_size = {values = [4, 6, 8, 12]}  # Possible values for the batch size
+    batch_size = {values = [2]}  # Possible values for the batch size
     learning_rate = {values = [0.01, 0.001, 0.0001, 0.0003, 3e-05, 1e-05]}  # Possible values for the learning rate
     optimizer = {values = ["adam", "sgd", "rmsprop"]}  # Possible values for the optimizer

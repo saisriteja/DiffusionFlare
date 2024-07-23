@@ -7,8 +7,8 @@ import wandb
 import os
 psnr = PeakSignalNoiseRatio()
 
-def val_script(accelerator,model, loss_fn, plot_dict, val_loss_list, val_psnr_list, val_avg_psnr_list, use_wandb, num_epochs, val_loader, overall_step, epoch, val_out_dir,loss_type):
-    
+def val_script(accelerator,model, loss_fn, plot_dict, val_loss_list, val_psnr_list, val_avg_psnr_list, use_wandb, num_epochs, val_loader, overall_step, epoch, val_out_dir,model_type,loss_type):
+    val_out_dir = os.path.join(val_out_dir, model_type)
     os.makedirs(val_out_dir, exist_ok=True)
     
     with torch.no_grad():
