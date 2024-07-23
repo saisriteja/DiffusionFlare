@@ -14,3 +14,4 @@ train_loss.png
 models/Emma/Ai.pth
 models/Emma/Av.pth
 old_checkpoints/
+sample_dataset.zip

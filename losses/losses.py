@@ -6,6 +6,14 @@ import torch.nn.functional as F
 from .loss_ssim import ssim
 from .loss_gt import fusion_loss_gt
 import kornia
+import toml
+
+# Path to your TOML config file
+config_file = 'config.toml'
+
+# Load the TOML file
+with open(config_file, 'r') as f:
+    toml_config = toml.load(f)
 
 def get_loss(loss):
     if loss == "L1":
@@ -14,6 +22,8 @@ def get_loss(loss):
         return fusion_loss_gt()
     elif loss == "EMMA_fusion_loss":
         return Emma_fusion_loss()
+    elif loss == "ERGAS":
+        return ERGAS(toml_config['model']['fm_ratio'])
     else:
         return NotImplementedError
 

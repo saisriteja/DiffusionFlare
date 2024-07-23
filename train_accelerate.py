@@ -26,6 +26,7 @@ import matplotlib.pyplot as plt
 from models.Emma.Ufuser import Ufuser
 from models.Emma.Unet5 import UNet5 as unet
 from utils.emma_utils import Transformer
+from models.fusion_mamba.u2net import U2Net as Net
 # from models.MambaDFuse.mambadfuse import MambaDFuse
 
 # Path to your TOML config file
@@ -36,12 +37,12 @@ with open(config_file, 'r') as f:
     toml_config = toml.load(f)
 
 # Initialize the accelerator
-if toml_config["model"]["type"] == "EMMA":
-    accelerator = Accelerator(project_dir=".")
-
-else:
+if toml_config["model"]["type"] == "Uformer":
     ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
     accelerator = Accelerator(project_dir=".",kwargs_handlers=[ddp_kwargs])
+
+else:
+    accelerator = Accelerator(project_dir=".")
 
 os.makedirs("checkpoints", exist_ok=True)
 
@@ -75,6 +76,8 @@ def train_fn(model_list, loss_fn, device,optimizer=None,tran=None):
         model = model_list[2]
     else:
         model = model_list
+    
+    logger.info(f"Model: {model}")
     if use_wandb:
         wandb.init(config=config_defaults)
         config = wandb.config
@@ -148,7 +151,11 @@ def train_fn(model_list, loss_fn, device,optimizer=None,tran=None):
     
     # psnr = PeakSignalNoiseRatio()
     train_loss_list_plot = []
-    
+
+    if toml_config["model"]["loss"] == "ERGAS":
+        ergas_loss = []
+        l1_loss = []
+        
     for epoch in range(start_epoch,num_epochs):
         # if toml_config["model"]["type"] == "EMMA":
         #     model[2].train()
@@ -186,6 +193,16 @@ def train_fn(model_list, loss_fn, device,optimizer=None,tran=None):
                 loss = loss_fn(flare, depth, output, rgb)
                 loss = loss[0]
                 running_loss += loss
+
+            elif toml_config["model"]["loss"] == "ERGAS":
+                criterion0 = nn.L1Loss(size_average=True).to(accelerator.device)
+                criterion1 = loss_fn.to(accelerator.device)
+                loss  = criterion0(output, rgb) + toml_config["model"]["ergas_weight"] * criterion1(output, rgb)
+                running_loss += loss.item()
+                ergas_loss.append(criterion1(output, rgb).item())
+                l1_loss.append(criterion0(output, rgb).item())
+
+            
             else:
                 loss = loss_fn(output, rgb)
                 running_loss += loss.item()
@@ -219,9 +236,14 @@ def train_fn(model_list, loss_fn, device,optimizer=None,tran=None):
 
         # Print the loss
         if accelerator.is_local_main_process:
-            logger.info(
-                f"Epoch: {epoch+1}/{num_epochs}, Loss: {running_loss:.4f}, lr: {scheduler.get_last_lr()}"
-            )
+            if not toml_config["model"]["loss"] == "ERGAS":
+                logger.info(
+                    f"Epoch: {epoch+1}/{num_epochs}, Loss: {running_loss:.4f}, lr: {scheduler.get_last_lr()}"
+                )
+            else:
+                logger.info(
+                    f"Epoch: {epoch+1}/{num_epochs}, Weighted Loss: {running_loss:.4f}, L1 Loss: {sum(l1_loss)/len(l1_loss):.4f}, ERGAS Loss: {sum(ergas_loss)/len(ergas_loss):.4f}, lr: {scheduler.get_last_lr()}"
+                )
         train_loss_list.append(running_loss) # For plotting onlys
         # train_avg_psnr_list.append(sum(train_psnr_list)/len(train_psnr_list))
 
@@ -296,7 +318,20 @@ def main():
         model=Ufuser()
         model_restoration = [F2Vmodel,F2Imodel,model]
         tran = Transformer(shift_num, rotate_num, flip_num)
-        
+    
+    elif toml_config["model"]["type"] == "FusionMamba":
+        model_restoration = Net(
+            toml_config["model"]["fm_channels"], 
+            toml_config["model"]["fm_spa_channels"], 
+            toml_config["model"]["fm_spe_channels"], 
+            toml_config["model"]["fm_H"], 
+            toml_config["model"]["fm_W"], 
+            toml_config["model"]["fm_ratio"], 
+        )
+
+    else:
+        return NotImplementedError
+    
     criterion = get_loss(toml_config["model"]["loss"])
     train_fn(model_restoration, criterion, device,tran = tran)
 
@@ -310,3 +345,19 @@ if __name__ == "__main__":
         print("No wandb sweep initiated.")
         # print(args)
         main()
+
+    # model = Net(
+    #                 toml_config["model"]["fm_channels"], 
+    #                 toml_config["model"]["fm_spa_channels"], 
+    #                 toml_config["model"]["fm_spe_channels"], 
+    #                 toml_config["model"]["fm_H"], 
+    #                 toml_config["model"]["fm_W"], 
+    #                 toml_config["model"]["fm_ratio"], 
+    #             )
+    # x = torch.randn(1,3,256,256)
+    # y = torch.randn(1,3,256,256)
+
+    # model.to('cuda')
+    # x = x.to('cuda')
+    # y = y.to('cuda')
+    # stx()
