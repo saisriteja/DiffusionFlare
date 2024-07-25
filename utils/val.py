@@ -7,10 +7,29 @@ import wandb
 import os
 psnr = PeakSignalNoiseRatio()
 
-def val_script(accelerator,model, loss_fn, plot_dict, val_loss_list, val_psnr_list, val_avg_psnr_list, use_wandb, num_epochs, val_loader, overall_step, epoch, val_out_dir,model_type,loss_type):
-    val_out_dir = os.path.join(val_out_dir, model_type)
+
+# Validation script
+def val_script(
+    accelerator,
+    model,
+    loss_fn,
+    plot_dict,
+    val_loss_list,
+    val_psnr_list,
+    val_avg_psnr_list,
+    use_wandb,
+    num_epochs,
+    val_loader,
+    overall_step,
+    epoch,
+    val_out_dir,
+    model_type,
+    loss_type,
+    curr_date,
+):
+    val_out_dir = os.path.join(val_out_dir, model_type, curr_date)
     os.makedirs(val_out_dir, exist_ok=True)
-    
+
     with torch.no_grad():
         model.eval()
         running_val_loss = 0
@@ -18,10 +37,9 @@ def val_script(accelerator,model, loss_fn, plot_dict, val_loss_list, val_psnr_li
         val_loss = []
         val_pbar = tqdm(iterable=None, disable=not accelerator.is_local_main_process, unit="batch",
                                 total=len(val_loader), leave=False, desc="Validation")
-        
 
         for i, (rgb, depth, flare) in enumerate(val_loader):
-            
+
             model.to(accelerator.device)
             rgb.to(accelerator.device)
             depth.to(accelerator.device)
@@ -34,7 +52,7 @@ def val_script(accelerator,model, loss_fn, plot_dict, val_loss_list, val_psnr_li
             psnr.update(rgb, output)
             val_psnr_list.append(psnr.compute().item())
 
-                    # Calculate the loss
+            # Calculate the loss
             # loss = loss_fn(output, rgb)
             if loss_type == "Fusionloss_Swin":
                 # print("Using Fusion Loss")
@@ -52,12 +70,12 @@ def val_script(accelerator,model, loss_fn, plot_dict, val_loss_list, val_psnr_li
 
         avg_val_loss = accelerator.gather(torch.tensor(val_loss, device=accelerator.device).unsqueeze(0)).mean().item()
         avg_val_psnr = accelerator.gather(torch.tensor(val_psnr_list, device=accelerator.device).unsqueeze(0)).mean().item()
-        
+
         # Create Val Images
         final_image = create_comparision_image(epoch, plot_list)
         plot_dict[epoch] = plot_list
 
-                # Print the loss
+        # Print the loss
         if accelerator.is_local_main_process:
             logger.info(
                         f"Validation: Epoch: {epoch+1}/{num_epochs}, Iters:{overall_step}, PSNR: {avg_val_psnr:.4f}, Loss: {avg_val_loss:.4f}"

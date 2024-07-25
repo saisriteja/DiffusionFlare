@@ -27,8 +27,10 @@ from models.Emma.Ufuser import Ufuser
 from models.Emma.Unet5 import UNet5 as unet
 from utils.emma_utils import Transformer
 from models.fusion_mamba.u2net import U2Net as Net
+from natsort import natsorted
 # from models.MambaDFuse.mambadfuse import MambaDFuse
 current_time = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+current_date = current_time.split("_")[0]
 # Path to your TOML config file
 config_file = 'config.toml'
 
@@ -128,8 +130,8 @@ def train_fn(model_list, loss_fn, device,optimizer=None,tran=None, stuff_from_wa
         num_epochs = toml_config["training"]["num_epochs"]
         batch_size = toml_config["data"]["batch_size"]
 
-    # train_loader = get_loader('train', toml_config["data"]["dataset_dir"], batch_size,toml_config["data"]["num_workers"])
-    train_loader = get_loader('small_train', toml_config["data"]["dataset_dir"], batch_size,toml_config["data"]["num_workers"])
+    train_loader = get_loader('train', toml_config["data"]["dataset_dir"], batch_size,toml_config["data"]["num_workers"])
+    # train_loader = get_loader('small_train', toml_config["data"]["dataset_dir"], batch_size,toml_config["data"]["num_workers"])
     val_loader = get_loader('val', toml_config["data"]["dataset_dir"], batch_size,toml_config["data"]["num_workers"])
 
     if optim_value=='sgd':
@@ -154,8 +156,11 @@ def train_fn(model_list, loss_fn, device,optimizer=None,tran=None, stuff_from_wa
     accelerator.register_for_checkpointing(model, optimizer, scheduler)
 
     # Resume training
-    checkpoint_dir = f"checkpoints/{model_type}_{current_time}"
-
+    checkpoint_dir = f"checkpoints/{model_type}/"
+    
+    # Choose the highest date folder
+    highest_date_folder = natsorted(os.listdir(checkpoint_dir))[-1]
+    checkpoint_dir = os.path.join(checkpoint_dir,highest_date_folder)
     # scan directory for checkpoint files
     checkpoint_folders = os.listdir(checkpoint_dir)
     checkpoint_folders_with_path = [os.path.join(checkpoint_dir, folder) for folder in checkpoint_folders]
@@ -168,7 +173,10 @@ def train_fn(model_list, loss_fn, device,optimizer=None,tran=None, stuff_from_wa
         # chekpointing path will be like checkpoints/epoch_{epoch}_step_{step}/*
         # get step and epoch from the checkpoint path
         # start_epoch = int(latest_checkpoint.split("/")[1].split("_")[1])
-        iters_done = int(latest_checkpoint.split("/")[1].split("_")[-1])
+        # stx()
+        logger.info(f"Resuming training from checkpoint: {latest_checkpoint}")
+        print(f"Resuming training from checkpoint: {latest_checkpoint}")
+        iters_done = int(latest_checkpoint.split("/")[-1].split("_")[-1])
         start_epoch = iters_done // len(train_loader)
         resume_step = iters_done % len(train_loader)
         if accelerator.is_local_main_process:
@@ -256,13 +264,15 @@ def train_fn(model_list, loss_fn, device,optimizer=None,tran=None, stuff_from_wa
                         accelerator.log(f"Validation started with {overall_step} iterations")
                     else:
                         logger.info(f"Validation started with {overall_step} iterations")
-                val_script(accelerator,model, loss_fn, plot_dict, val_loss_list, val_psnr_list, val_avg_psnr_list, use_wandb, num_epochs, val_loader, overall_step, epoch, toml_config["data"]["val_out_dir"],toml_config["model"]["type"],toml_config["model"]["loss"])
+                val_script(accelerator,model, loss_fn, plot_dict, val_loss_list, val_psnr_list, val_avg_psnr_list, use_wandb, num_epochs, val_loader, overall_step, epoch, toml_config["data"]["val_out_dir"],toml_config["model"]["type"],toml_config["model"]["loss"], curr_date=current_date)
                 model.train()
                 accelerator.wait_for_everyone()
 
             if overall_step % toml_config["training"]["checkpointing_steps"] == 0:
-                save_dir = f"checkpoints/epoch_{epoch}_iters_{overall_step}"
+                save_dir = f"checkpoints/{model_type}/{current_date}/epoch_{epoch}_iters_{overall_step}"
                 accelerator.wait_for_everyone()
+                # Unwrap the model if it is wrapped in DDP
+                accelerator.unwrap_model(model)
                 accelerator.save_state(save_dir)
                 if accelerator.is_local_main_process:
                     if use_wandb:
@@ -405,7 +415,7 @@ def main():
         return NotImplementedError
     
     criterion = get_loss(toml_config["model"]["loss"])
-    train_fn(model_restoration, criterion, device,tran = tran, stuff_from_wandb=stuff_from_wandb)
+    train_fn(model_restoration, criterion, device,tran = tran, stuff_from_wandb=None)
 
 if __name__ == "__main__":
     # Initialize the sweep

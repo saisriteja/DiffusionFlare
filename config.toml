@@ -3,7 +3,7 @@
 dataset_dir = "/data/yash/depth_dataset_without_aug"  # Directory containing the dataset
 val_out_dir = "val_out"  # Directory to save validation outputs
 # dataset_dir = '/data/yash/sample_dataset/sample_dataset' # dummy dataset
-batch_size = 2  # Number of samples in each batch
+batch_size = 10  # Number of samples in each batch
 num_workers = 8  # Number of subprocesses to use for data loading
 shuffle = true  # Whether to shuffle the training data
 val_freq = 1000
@@ -50,7 +50,7 @@ type = "CosineAnnealingRestartCyclicLR"  # TODO: Will add support for more later
 [training]
 num_epochs = 50
 resume=true
-checkpointing_steps = 10000 
+checkpointing_steps = 10000
 plot_steps = 10000
 
 # Whether to use Weights and Biases (wandb)
