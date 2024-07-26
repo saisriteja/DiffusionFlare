@@ -10,12 +10,12 @@ val_freq = 1000
 
 # Model configuration
 [model]
-type = "FusionMamba"  # Type of model architecture choose in [Uformer, SwinFusion, EMMA,FusionMamba]
+type = "VMambaIR"  # Type of model architecture choose in [Uformer, SwinFusion, EMMA,FusionMamba, MambaIR, VMambaIR]
 depths = [1, 1, 1, 1, 1, 1, 1, 1, 1]  # Depth of each Uformer block
 input_size = 256  
 embed_dim = 16  
 win_size = 8  
-loss = "ERGAS"  # Type of loss function used [L1, Fusionloss_Swin, EMMA_fusion_loss, ERGAS] 
+loss = "L1"  # Type of loss function used [L1, Fusionloss_Swin, EMMA_fusion_loss, ERGAS, ERGAS_modified] 
 ergas_weight =  1e-4
 swin_upscale = 2
 swin_depths= [6,6,6,6]
@@ -48,9 +48,9 @@ type = "CosineAnnealingRestartCyclicLR"  # TODO: Will add support for more later
 
 # Training configuration
 [training]
-num_epochs = 50
-resume=true
-checkpointing_steps = 10000
+num_epochs = 100
+resume=false
+checkpointing_steps = 9000
 plot_steps = 10000
 
 # Whether to use Weights and Biases (wandb)

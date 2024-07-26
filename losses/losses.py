@@ -24,9 +24,30 @@ def get_loss(loss):
         return Emma_fusion_loss()
     elif loss == "ERGAS":
         return ERGAS(toml_config['model']['fm_ratio'])
+    elif loss == "ERGAS_modified":
+        return ERGAS_modified(toml_config['model']['fm_ratio'])
     else:
         return NotImplementedError
 
+
+class ERGAS_modified(nn.Module):
+    def __init__(self, ratio=1):
+        super().__init__()
+        self.ratio = ratio
+        self.l1 = nn.L1Loss()
+        self.l2 = nn.MSELoss()
+        self.abs = L_Abs_pure()
+        self.percepture = L_percepture()
+        self.ergas = ERGAS(ratio)
+
+    def forward(self, img, gt):
+        ergas = self.ergas(img, gt)
+        l1 = self.l1(img, gt)
+        l2 = self.l2(img, gt)
+        abs = self.abs(img, gt)
+        percepture = self.percepture(img, gt)
+        return l1 + 0.5 * l2 + 0.5 * abs + 0.5 * percepture +  0.001 * ergas
+        
 def L1_loss(pred, target):
     return torch.mean(torch.abs(pred - target))
 
@@ -40,7 +61,7 @@ class L_Abs_pure(nn.Module):
         flare_loss=torch.abs(x-flare_gt)
         Abs_loss=torch.mean(flare_loss)
         return self.loss_weight*Abs_loss
-    
+
 # Used by Flare7kpp (0.5 weighting)
 class L_percepture(nn.Module):
     def __init__(self,loss_weight=1.0):
@@ -75,7 +96,7 @@ class L_percepture(nn.Module):
         for i in range(len_feature):
             perceptual_loss+=self.mae_loss(source_feature[i],target_feature[i])*self.layer_weight[i]
         return self.loss_weight*perceptual_loss
-    
+
 
 # used by FusionMamba (other is L1)
 class ERGAS(torch.nn.Module):
@@ -92,9 +113,9 @@ class ERGAS(torch.nn.Module):
         ergas = 100 * (1 / self.ratio) * ((summ / c) ** 0.5)
         ergas = ergas.mean()
         return ergas
-    
 
-# From CDDFuse [https://github.com/Zhaozixiang1228/MMIF-CDDFuse/blob/main/utils/loss.py]    
+
+# From CDDFuse [https://github.com/Zhaozixiang1228/MMIF-CDDFuse/blob/main/utils/loss.py]
 class Fusionloss(nn.Module):
     def __init__(self):
         super(Fusionloss, self).__init__()
@@ -145,8 +166,6 @@ def cc(img1, img2):
     return cc.mean()
 
 
-
-
 # SwinFusion [https://github.com/Linfeng-Tang/SwinFusion/blob/master/models/loss_vif.py]
 
 # Texture loss
@@ -162,7 +181,7 @@ class L_Grad(nn.Module):
         gradient_joint = torch.max(gradient_A, gradient_B)
         Loss_gradient = F.l1_loss(gradient_fused, gradient_joint)
         return Loss_gradient
-        
+
 # SSIM Loss
 class L_SSIM(nn.Module):
     def __init__(self):
@@ -176,7 +195,7 @@ class L_SSIM(nn.Module):
         weight_B = torch.mean(gradient_B) / (torch.mean(gradient_A) + torch.mean(gradient_B))
         Loss_SSIM = weight_A * ssim(image_A, image_fused) + weight_B * ssim(image_B, image_fused)
         return Loss_SSIM
-    
+
 class Sobelxy(nn.Module):
     def __init__(self):
         super(Sobelxy, self).__init__()
@@ -221,7 +240,7 @@ class fusion_loss_vif(nn.Module):
         fusion_loss = loss_l1 + loss_gradient + loss_SSIM
         return fusion_loss, loss_gradient, loss_l1, loss_SSIM
 
-# Taken from [MMIF-EMMA] (https://github.com/Zhaozixiang1228/MMIF-EMMA/blob/64141ce51effe31217a0d986ee7ec4baead0bb0a/utils.py#L31) 
+# Taken from [MMIF-EMMA] (https://github.com/Zhaozixiang1228/MMIF-EMMA/blob/64141ce51effe31217a0d986ee7ec4baead0bb0a/utils.py#L31)
 class Emma_fusion_loss(nn.Module):
     def __init__(self,coeff_int=1,coeff_grad=1):
         super(Emma_fusion_loss, self).__init__()

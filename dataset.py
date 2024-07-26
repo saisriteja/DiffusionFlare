@@ -287,12 +287,13 @@ class Flare7kpp_Pair_Loader(Flare_Image_Loader):
 
 
 class ImageDataset(data.Dataset):
-    def __init__(self, rgb_paths, depth_paths, flare_paths, ):
+    def __init__(self, rgb_paths, depth_paths, flare_paths, input_size=256):
         self.rgb_paths = rgb_paths
         self.depth_paths = depth_paths
         self.flare_paths = flare_paths
+        self.input_size = input_size
         self.transform = transforms.Compose(
-            [transforms.Resize((256, 256)), transforms.ToTensor()]
+            [transforms.Resize((self.input_size, self.input_size)), transforms.ToTensor()]
         )
 
     def __len__(self):
@@ -335,17 +336,17 @@ def augmentations(img, mode):
 	elif mode == 7:
 		return TF.hflip(TF.rotate(img, 270))
 
-def get_loader(phase, datatset_path, batch_size,num_workers):
+def get_loader(phase, datatset_path, batch_size,num_workers, input_size):
 
-    rgb_paths = natsorted(glob.glob(f'{datatset_path}/{phase}/rgb/*'))
+    rgb_paths = natsorted(glob.glob(f'{datatset_path}/{phase}/gt/*'))
     depth_paths = natsorted(glob.glob(f'{datatset_path}/{phase}/depth/*'))
-    flare_paths = natsorted(glob.glob(f'{datatset_path}/{phase}/merged/*'))
+    flare_paths = natsorted(glob.glob(f'{datatset_path}/{phase}/lq/*'))
 
     print(f"Number of {phase} images: {len(flare_paths)}")
     
     assert len(rgb_paths) == len(depth_paths) == len(flare_paths), "Number of images in each folder should be same"
 
-    dataset = ImageDataset(rgb_paths, depth_paths, flare_paths)
+    dataset = ImageDataset(rgb_paths, depth_paths, flare_paths, input_size= input_size)
     dataloader = data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
 
     return dataloader

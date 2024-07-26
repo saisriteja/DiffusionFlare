@@ -26,8 +26,11 @@ import matplotlib.pyplot as plt
 from models.Emma.Ufuser import Ufuser
 from models.Emma.Unet5 import UNet5 as unet
 from utils.emma_utils import Transformer
-from models.fusion_mamba.u2net import U2Net as Net
+# from models.fusion_mamba.u2net import U2Net as Net
 from natsort import natsorted
+from models.mambair_arch import MambaIR
+from models.VMambaIR import Mamber32 as VMambaIR_model
+# torch.autograd.set_detect_anomaly(True)
 # from models.MambaDFuse.mambadfuse import MambaDFuse
 current_time = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
 current_date = current_time.split("_")[0]
@@ -39,7 +42,6 @@ config_file = 'config.toml'
 with open(config_file, 'r') as f:
     toml_config = toml.load(f)
 model_type =  toml_config["model"]["type"]
-os.makedirs(f"checkpoints/{model_type}_{current_time}", exist_ok=True)
 using_wandb = toml_config["use_wandb"]["value"]
 
 # Initialize the accelerator
@@ -89,7 +91,8 @@ else:
 # Set the logger
 logger = logzero.setup_default_logger(disableStderrLogger=True)
 # get current time and date
-logzero.logfile(f"logs/{current_time}.log")
+os.makedirs(f"logs/{model_type}/", exist_ok=True)
+logzero.logfile(f"logs/{model_type}/{current_time}.log")
 
 # Set the random seed
 set_seed(42)
@@ -123,16 +126,15 @@ def train_fn(model_list, loss_fn, device,optimizer=None,tran=None, stuff_from_wa
         batch_size = stuff_from_wandb[3]
 
     else:
-        logger.info(f"Model: {model}")
         config = toml_config   
         optim_value = toml_config["optimizer"]["type"]
         lr = toml_config["optimizer"]["learning_rate"]
         num_epochs = toml_config["training"]["num_epochs"]
         batch_size = toml_config["data"]["batch_size"]
 
-    train_loader = get_loader('train', toml_config["data"]["dataset_dir"], batch_size,toml_config["data"]["num_workers"])
-    # train_loader = get_loader('small_train', toml_config["data"]["dataset_dir"], batch_size,toml_config["data"]["num_workers"])
-    val_loader = get_loader('val', toml_config["data"]["dataset_dir"], batch_size,toml_config["data"]["num_workers"])
+    # train_loader = get_loader('train', toml_config["data"]["dataset_dir"], batch_size,toml_config["data"]["num_workers"])
+    train_loader = get_loader('small_train', toml_config["data"]["dataset_dir"], batch_size,toml_config["data"]["num_workers"], input_size=toml_config["model"]["input_size"])
+    val_loader = get_loader('val', toml_config["data"]["dataset_dir"], batch_size,toml_config["data"]["num_workers"], input_size=toml_config["model"]["input_size"])
 
     if optim_value=='sgd':
         optimizer = torch.optim.SGD(model.parameters(),lr=lr)
@@ -143,6 +145,14 @@ def train_fn(model_list, loss_fn, device,optimizer=None,tran=None, stuff_from_wa
     elif optim_value=='nadam':
         optimizer =torch.optim.NAdam(model.parameters(),lr=lr, betas=(0.9, 0.999), eps=1e-8, weight_decay=1e-5)
 
+    logger.info(f"Model: {model}")
+    logger.info(f"Loss Function: {loss_fn}")
+    logger.info(f"Device: {device}")
+    logger.info(f"Optimizer: {optimizer}")
+    logger.info(f"Learning Rate: {lr}")
+    logger.info(f"Number of Epochs: {num_epochs}")
+    logger.info(f"Batch Size: {batch_size}")
+    logger.info(toml_config)
     # Train the model
     model.to(device)
 
@@ -156,40 +166,43 @@ def train_fn(model_list, loss_fn, device,optimizer=None,tran=None, stuff_from_wa
     accelerator.register_for_checkpointing(model, optimizer, scheduler)
 
     # Resume training
-    checkpoint_dir = f"checkpoints/{model_type}/"
-    
-    # Choose the highest date folder
-    highest_date_folder = natsorted(os.listdir(checkpoint_dir))[-1]
-    checkpoint_dir = os.path.join(checkpoint_dir,highest_date_folder)
-    # scan directory for checkpoint files
-    checkpoint_folders = os.listdir(checkpoint_dir)
-    checkpoint_folders_with_path = [os.path.join(checkpoint_dir, folder) for folder in checkpoint_folders]
+    if toml_config["training"]["resume"]:
+        checkpoint_dir = f"checkpoints/{model_type}/"
+        # Choose the highest date folder
+        highest_date_folder = natsorted(os.listdir(checkpoint_dir))[-1]
+        checkpoint_dir = os.path.join(checkpoint_dir,highest_date_folder)
+        # scan directory for checkpoint files
+        checkpoint_folders = os.listdir(checkpoint_dir)
+        checkpoint_folders_with_path = [os.path.join(checkpoint_dir, folder) for folder in checkpoint_folders]
 
     # if there are checkpoint files, load the latest one
-    if checkpoint_folders_with_path:
-        latest_checkpoint = max(checkpoint_folders_with_path, key=os.path.getctime)
-        accelerator.load_state(latest_checkpoint)
+        if checkpoint_folders_with_path:
+            latest_checkpoint = max(checkpoint_folders_with_path, key=os.path.getctime)
+            accelerator.load_state(latest_checkpoint)
 
-        # chekpointing path will be like checkpoints/epoch_{epoch}_step_{step}/*
-        # get step and epoch from the checkpoint path
-        # start_epoch = int(latest_checkpoint.split("/")[1].split("_")[1])
-        # stx()
-        logger.info(f"Resuming training from checkpoint: {latest_checkpoint}")
-        print(f"Resuming training from checkpoint: {latest_checkpoint}")
-        iters_done = int(latest_checkpoint.split("/")[-1].split("_")[-1])
-        start_epoch = iters_done // len(train_loader)
-        resume_step = iters_done % len(train_loader)
-        if accelerator.is_local_main_process:
+            # chekpointing path will be like checkpoints/epoch_{epoch}_step_{step}/*
+            # get step and epoch from the checkpoint path
+            # start_epoch = int(latest_checkpoint.split("/")[1].split("_")[1])
+            # stx()
+            logger.info(f"Resuming training from checkpoint: {latest_checkpoint}")
+            print(f"Resuming training from checkpoint: {latest_checkpoint}")
+            iters_done = int(latest_checkpoint.split("/")[-1].split("_")[-1])
+            start_epoch = iters_done // len(train_loader)
+            resume_step = iters_done % len(train_loader)
+            if accelerator.is_local_main_process:
 
-            # accelerator.log({"Resuming_epoch":{start_epoch}, "iters_done" :{iters_done}, "skipping_batches" :resume_step , "lr": scheduler.get_last_lr()}, step={iters_done})
+                # accelerator.log({"Resuming_epoch":{start_epoch}, "iters_done" :{iters_done}, "skipping_batches" :resume_step , "lr": scheduler.get_last_lr()}, step={iters_done})
 
-            logger.info(
-                f"Resuming training from epoch {start_epoch}, iter {iters_done} and skipping batches {resume_step}, lr: {scheduler.get_last_lr()}"
-            )
+                logger.info(
+                    f"Resuming training from epoch {start_epoch}, iter {iters_done} and skipping batches {resume_step}, lr: {scheduler.get_last_lr()}"
+                )
 
     else:
         start_epoch = 0
         resume_step = None
+        os.makedirs(f"checkpoints/{model_type}/{current_time}", exist_ok=True)
+        # logger.info(f"Training from scratch")
+        print(f"Training from scratch")
 
     overall_step = 0
 
@@ -199,7 +212,7 @@ def train_fn(model_list, loss_fn, device,optimizer=None,tran=None, stuff_from_wa
     if toml_config["model"]["loss"] == "ERGAS":
         ergas_loss = []
         l1_loss = []
-        
+
     for epoch in range(start_epoch,num_epochs):
         # if toml_config["model"]["type"] == "EMMA":
         #     model[2].train()
@@ -212,8 +225,9 @@ def train_fn(model_list, loss_fn, device,optimizer=None,tran=None, stuff_from_wa
 
         else:
             active_dataloader = train_loader
-        
+
         running_loss = 0
+        train_loss = []
         for i, (rgb, depth, flare) in tqdm(enumerate(active_dataloader), total=len(active_dataloader)):
 
             optimizer.zero_grad()
@@ -224,8 +238,15 @@ def train_fn(model_list, loss_fn, device,optimizer=None,tran=None, stuff_from_wa
                 F2Vmodel = model_list[0].to(accelerator.device)
                 F2Imodel = model_list[1].to(accelerator.device)
                 Ft = tran.apply(output)
-                Ft_caret= model(F2Imodel(Ft),F2Vmodel(Ft))
-                loss=loss_fn(F2Vmodel(output),flare)+loss_fn(F2Imodel(output),depth)+0.1*loss_fn(Ft,Ft_caret)
+                Ft_caret = model(F2Imodel(Ft), F2Vmodel(Ft))
+                loss = (
+                    loss_fn(F2Vmodel(output), flare)
+                    + loss_fn(F2Imodel(output), depth)
+                    + 0.1 * loss_fn(Ft, Ft_caret)
+                )
+
+            elif toml_config["model"]["type"] in ["MambaIR", "VMambaIR"]:
+                output = model(flare)
 
             else:
                 output = model(flare, depth)
@@ -249,6 +270,9 @@ def train_fn(model_list, loss_fn, device,optimizer=None,tran=None, stuff_from_wa
             else:
                 loss = loss_fn(output, rgb)
                 running_loss += loss.item()
+                # logger.info(f"Running Loss: {loss.item()}")
+                # if running_loss == float("nan"):
+                #     stx()
 
             # Backpropagation
             accelerator.backward(loss)
@@ -264,12 +288,29 @@ def train_fn(model_list, loss_fn, device,optimizer=None,tran=None, stuff_from_wa
                         accelerator.log(f"Validation started with {overall_step} iterations")
                     else:
                         logger.info(f"Validation started with {overall_step} iterations")
-                val_script(accelerator,model, loss_fn, plot_dict, val_loss_list, val_psnr_list, val_avg_psnr_list, use_wandb, num_epochs, val_loader, overall_step, epoch, toml_config["data"]["val_out_dir"],toml_config["model"]["type"],toml_config["model"]["loss"], curr_date=current_date)
+                val_script(
+                    accelerator,
+                    model,
+                    loss_fn,
+                    plot_dict,
+                    val_loss_list,
+                    val_psnr_list,
+                    val_avg_psnr_list,
+                    use_wandb,
+                    num_epochs,
+                    val_loader,
+                    overall_step,
+                    epoch,
+                    toml_config["data"]["val_out_dir"],
+                    toml_config["model"]["type"],
+                    toml_config["model"]["loss"],
+                    curr_date=current_time,
+                )
                 model.train()
                 accelerator.wait_for_everyone()
 
             if overall_step % toml_config["training"]["checkpointing_steps"] == 0:
-                save_dir = f"checkpoints/{model_type}/{current_date}/epoch_{epoch}_iters_{overall_step}"
+                save_dir = f"checkpoints/{model_type}/{current_time}/epoch_{epoch}_iters_{overall_step}"
                 accelerator.wait_for_everyone()
                 # Unwrap the model if it is wrapped in DDP
                 accelerator.unwrap_model(model)
@@ -289,36 +330,39 @@ def train_fn(model_list, loss_fn, device,optimizer=None,tran=None, stuff_from_wa
                 plot_loss(train_loss_list_plot)
 
         # Print the loss
+        avg_train_loss = accelerator.gather(torch.tensor(train_loss_list_plot, device=accelerator.device).unsqueeze(0)).mean().item()
+
         if accelerator.is_local_main_process:
             if not toml_config["model"]["loss"] == "ERGAS":
                 if use_wandb:
                     accelerator.log(
                         {
                             "Epoch": epoch+1, 
-                            "Loss": running_loss, 
+                            "Loss": avg_train_loss, 
                             "lr": scheduler.get_last_lr(),
                         }
                     )
                 logger.info(
-                    f"Epoch: {epoch+1}/{num_epochs}, Loss: {running_loss:.4f}, lr: {scheduler.get_last_lr()}"
+                    f"Epoch: {epoch+1}/{num_epochs},Iters: {overall_step}, Loss: {avg_train_loss:.4f}, lr: {scheduler.get_last_lr()}"
                 )
             else:
                 if use_wandb:
                     accelerator.log(
                         {
                             "Epoch": epoch+1, 
-                            "Weighted Loss": running_loss, 
+                            "Weighted Loss": avg_train_loss, 
                             "L1 Loss": sum(l1_loss)/len(l1_loss), 
                             "ERGAS Loss": sum(ergas_loss)/len(ergas_loss), 
                             "lr": scheduler.get_last_lr(),
                         }
                     )
                 logger.info(
-                    f"Epoch: {epoch+1}/{num_epochs}, Weighted Loss: {running_loss:.4f}, L1 Loss: {sum(l1_loss)/len(l1_loss):.4f}, ERGAS Loss: {sum(ergas_loss)/len(ergas_loss):.4f}, lr: {scheduler.get_last_lr()}"
+                    f"Epoch: {epoch+1}/{num_epochs}, Weighted Loss: {avg_train_loss:.4f}, L1 Loss: {sum(l1_loss)/len(l1_loss):.4f}, ERGAS Loss: {sum(ergas_loss)/len(ergas_loss):.4f}, lr: {scheduler.get_last_lr()}"
                 )
         train_loss_list.append(running_loss) # For plotting onlys
+
         # train_avg_psnr_list.append(sum(train_psnr_list)/len(train_psnr_list))
-   
+
     return plot_dict
 
 def plot_loss(train_loss_list):
@@ -410,6 +454,11 @@ def main():
             toml_config["model"]["fm_W"], 
             toml_config["model"]["fm_ratio"], 
         )
+    elif toml_config["model"]["type"] == "MambaIR":
+        model_restoration = MambaIR()
+
+    elif toml_config["model"]["type"] == "VMambaIR":
+        model_restoration = VMambaIR_model()
 
     else:
         return NotImplementedError

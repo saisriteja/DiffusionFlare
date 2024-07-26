@@ -46,7 +46,10 @@ def val_script(
             flare.to(accelerator.device)
 
             # Forward pass
-            output = model(flare, depth)
+            if model_type in ["MambaIR", "VMambaIR"]:
+                output = model(flare)
+            else:
+                output = model(flare, depth)
             plot_list.append([rgb, depth, flare, output])
 
             psnr.update(rgb, output)
