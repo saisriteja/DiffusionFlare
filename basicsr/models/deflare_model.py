@@ -47,6 +47,8 @@ class DeflareModel(SRModel):
         # define losses
         self.l1_pix = build_loss(train_opt['l1_opt']).to(self.device)
         self.l_perceptual = build_loss(train_opt['perceptual']).to(self.device)
+        if 'fusion_loss' in train_opt:
+            self.fusion_loss=build_loss(train_opt['fusion_loss']).to(self.device)
 
         # set up optimizers and schedulers
         self.setup_optimizers()
@@ -103,6 +105,15 @@ class DeflareModel(SRModel):
         loss_dict['l_vgg'] = l_vgg
         loss_dict['l_vgg_base'] = l_vgg_base
         loss_dict['l_vgg_flare'] = l_vgg_flare
+
+        # fusion loss
+        if 'fusion_loss' in self.opt['train']:
+            l_fusion, l_fusion_in, l_fusion_grad = self.fusion_loss(self.lq,self.depth,self.deflare)
+            l_total += l_fusion
+            loss_dict['l_fusion'] = l_fusion
+            loss_dict['l_fusion_in'] = l_fusion_in
+            loss_dict['l_fusion_grad'] = l_fusion_grad
+
 
         l_total.backward()
         # torch.nn.utils.clip_grad_norm_(self.net_g.parameters(), 1.0)
