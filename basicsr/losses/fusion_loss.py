@@ -6,9 +6,10 @@ from basicsr.utils.registry import LOSS_REGISTRY
 # From CDDFuse [https://github.com/Zhaozixiang1228/MMIF-CDDFuse/blob/main/utils/loss.py]
 @LOSS_REGISTRY.register()
 class Fusionloss(nn.Module):
-    def __init__(self):
+    def __init__(self, loss_weight=0.1):
         super(Fusionloss, self).__init__()
         self.sobelconv=Sobelxy()
+        self.loss_weight=loss_weight
 
     def forward(self,image_vis,image_ir,generate_img):
         image_y=image_vis[:,:1,:,:]
@@ -20,7 +21,7 @@ class Fusionloss(nn.Module):
         x_grad_joint=torch.max(y_grad,ir_grad)
         loss_grad=F.l1_loss(x_grad_joint,generate_img_grad)
         loss_total=loss_in+10*loss_grad
-        return loss_total,loss_in,loss_grad
+        return loss_total * self.loss_weight
 
 class Sobelxy(nn.Module):
     def __init__(self):

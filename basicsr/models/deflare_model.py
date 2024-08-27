@@ -108,11 +108,9 @@ class DeflareModel(SRModel):
 
         # fusion loss
         if 'fusion_loss' in self.opt['train']:
-            l_fusion, l_fusion_in, l_fusion_grad = self.fusion_loss(self.lq,self.depth,self.deflare)
-            l_total += l_fusion
-            loss_dict['l_fusion'] = l_fusion
-            loss_dict['l_fusion_in'] = l_fusion_in
-            loss_dict['l_fusion_grad'] = l_fusion_grad
+            f_loss = self.fusion_loss(self.lq,self.depth,self.deflare)
+            l_total += f_loss
+            loss_dict['l_fusion'] = f_loss
 
 
         l_total.backward()

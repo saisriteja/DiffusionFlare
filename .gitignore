@@ -5,3 +5,5 @@ ckpts/
 experiments/
 __pycache__
 Generate_flare_on_light/
+dataset/
+sample_dataset/
